@@ -1,0 +1,47 @@
+---
+- hosts: hypervisor
+  tasks:
+  - name: start bootstrap vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ bootstrap.name }}"
+      state: running
+
+  - name: Pause for 30 seconds to allow bootstrap vm to come up
+    pause:
+      seconds: 30
+
+- hosts: hypervisor
+  tasks:
+  - name: start master vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: running
+    with_items:
+    - "{{ masters }}"
+
+  - name: Pause for 60 seconds to allow master vm(s) to come up
+    pause:
+      seconds: 60
+
+- hosts: hypervisor
+  tasks:
+  - name: start worker vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: running
+    with_items:
+    - "{{ workers }}"
+
+  - name: Pause for 60 seconds to allow worker vm(s) to come up
+    pause:
+      seconds: 60
+
+- hosts: hypervisor
+  tasks:
+  - name: start infra vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: running
+    with_items:
+    - "{{ infras }}"
+    when: infras | length > 0

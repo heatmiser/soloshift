@@ -1,0 +1,18 @@
+# OpenShift 4 pull secret
+pull-secret.txt
+
+# Custom variables
+inventory/group_vars/all/my_vars.yaml
+inventory/group_vars/all/vars.yaml
+
+# Custom inventory
+inventory/*_vms
+
+# provided by ansible-galaxy
+roles/devnullcake.redhat-subscription
+
+# ocp4upi install info
+ocp4upi
+
+# intermediate jinja templates
+playbooks/*.j2

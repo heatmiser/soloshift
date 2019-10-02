@@ -1,0 +1,35 @@
+---
+- hosts: localhost
+  connection: local
+  become: true
+  # gather_facts: false
+  tasks:
+  - name: "Register host hypervisor with RHN and add repos"
+    import_role:
+      name: devnullcake.redhat-subscription
+    when:
+      - ansible_distribution == 'RedHat'
+
+  - name: "Configure host hypervisor system"
+    import_role:
+      name: ocp4-solo-hypervisor
+
+  - name: Print Ansible Distribution debug information 
+    vars: 
+      msg: |
+        Ansible Distribution: {{ ansible_distribution }}
+        Ansible Dist version: {{ ansible_distribution_version }}
+    debug: 
+      msg: "{{ msg.split('\n') }}"       
+    tags: debug_info
+
+  - name: Print Red Hat subscription debug information 
+    vars: 
+      msg: |
+        redhat_subscription_username: {{ redhat_subscription_username }}
+        redhat_subscription_password: {{ redhat_subscription_password }}
+        redhat_subscription_org_id: {{ redhat_subscription_org_id }}
+        redhat_subscription_activationkey: {{ redhat_subscription_activationkey }}
+    debug: 
+      msg: "{{ msg.split('\n') }}"       
+    tags: debug_info

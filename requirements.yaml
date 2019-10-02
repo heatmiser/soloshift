@@ -1,0 +1,3 @@
+# from galaxy, install in local roles directory
+# ansible-galaxy install --role-path ./roles -r requirements.yaml
+- src: devnullcake.redhat-subscription

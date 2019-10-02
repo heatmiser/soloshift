@@ -1,0 +1,7 @@
+#!/usr/bin/env ansible-playbook
+
+- import_playbook: playbooks/00-ocp-hyper.yaml
+- import_playbook: playbooks/01-ocp-vms.yaml
+- import_playbook: playbooks/02-ocp-util.yaml
+- import_playbook: playbooks/03-ocp-init.yaml
+- import_playbook: playbooks/clear-cache.yaml

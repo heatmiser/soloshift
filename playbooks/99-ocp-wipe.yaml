@@ -1,0 +1,213 @@
+---
+- hosts: hypervisor
+  become: true
+  tasks:
+  - name: ansible-playbook pwd
+    run_once: True
+    set_fact:
+      ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+    failed_when: ansible_playbook_pwd == ''
+
+  - name: stop utility vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ util.name }}"
+      state: destroyed
+
+  - name: stop bootstrap vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: destroyed
+    with_items:
+    - "{{ bootstrap }}"
+
+  - name: stop master vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: destroyed
+    with_items:
+    - "{{ masters }}"
+
+  - name: stop infra vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: destroyed
+    with_items:
+    - "{{ infras }}"
+    when: infras | length > 0
+
+  - name: stop worker vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: destroyed
+    with_items:
+    - "{{ workers }}"
+
+  - name: record utility VM image path
+    shell: >
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ util.name }} | grep {{ disk }} | awk '{print $2}');
+      echo "[utility]" > /tmp/vm_img_path.ini;
+      echo "{{ util.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini;
+      echo "" >> /tmp/vm_img_path.ini
+    tags:
+    - vm_image_path_dict
+
+  - name: record bootstrap VM image path
+    shell: >
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
+      echo "[bootstrap]" >> /tmp/vm_img_path.ini;
+      echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
+    with_items:
+    - "{{ bootstrap }}"
+    tags:
+    - vm_image_path_dict
+
+  - name: start master VM image path ini section
+    shell: >
+      echo "" >> /tmp/vm_img_path.ini;
+      echo "[masters]" >> /tmp/vm_img_path.ini
+    tags:
+    - vm_image_path_dict
+
+  - name: record master VM image path
+    shell: >
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
+      echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
+    with_items:
+    - "{{ masters }}"
+    tags:
+    - vm_image_path_dict
+
+  - name: start infra VM image path ini section
+    shell: >
+      echo "" >> /tmp/vm_img_path.ini;
+      echo "[infras]" >> /tmp/vm_img_path.ini
+    when: infras | length > 0
+    tags:
+    - vm_image_path_dict
+
+  - name: record infra VM image path
+    shell: >
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
+      echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
+    with_items:
+    - "{{ infras }}"
+    when: infras | length > 0
+    tags:
+    - vm_image_path_dict
+
+  - name: start worker VM image path ini section
+    shell: >
+      echo "" >> /tmp/vm_img_path.ini;
+      echo "[workers]" >> /tmp/vm_img_path.ini
+    tags:
+    - vm_image_path_dict
+
+  - name: record worker VM image path
+    shell: >
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
+      echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
+    with_items:
+    - "{{ workers }}"
+    tags:
+    - vm_image_path_dict
+
+  - name: Pause for 5 seconds
+    pause:
+      seconds: 5
+
+  - name: undefine utility vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ util.name }}"
+      command: undefine
+
+  - name: undefine bootstrap vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      command: undefine
+    with_items:
+    - "{{ bootstrap }}"
+
+  - name: undefine master vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      command: undefine
+    with_items:
+    - "{{ masters }}"
+
+  - name: undefine infra vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      command: undefine
+    with_items:
+    - "{{ infras }}"
+    when: infras | length > 0
+
+  - name: undefine worker vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      command: undefine
+    with_items:
+    - "{{ workers }}"
+
+  - name: "Remove utility vm image file"
+    vars:
+      vm_image_path: "{{ lookup('ini', '{{ util.name }}.imgpath section=utility file=/tmp/vm_img_path.ini') }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+
+  - name: "Remove bootstrap vm image file"
+    vars:
+      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=bootstrap file=/tmp/vm_img_path.ini') }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+    with_items:
+    - "{{ bootstrap }}"
+
+  - name: "Remove master vm image file(s)"
+    vars:
+      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=masters file=/tmp/vm_img_path.ini') }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+    with_items:
+    - "{{ masters }}"
+
+  - name: "Remove infra vm image file(s)"
+    vars:
+      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=infras file=/tmp/vm_img_path.ini') }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+    with_items:
+    - "{{ infras }}"
+    when: infras | length > 0
+
+  - name: "Remove worker vm image file(s)"
+    vars:
+      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=workers file=/tmp/vm_img_path.ini') }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+    with_items:
+    - "{{ workers }}"
+
+  - name: "Remove vm image backing file"
+    vars:
+      vm_image_path: "{{ util.vm_image_backing_file }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+
+  - name: Remove libvirt network
+    virt_net:
+      name: "{{ ocp_vms_openshift_release }}-private"
+      state: "{{ item }}"
+    with_items:
+      - inactive
+      - absent
+
+  - name: Removing VM-specific deploy files
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+    - "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_release }}_vms"
+    - "{{ playbook_dir }}/install-config.yaml.intermediate.j2"
+    - "{{ ansible_playbook_pwd }}/inventory/group_vars/all/vars.yaml"
+    - "{{ ansible_playbook_pwd }}/ocp4upi"

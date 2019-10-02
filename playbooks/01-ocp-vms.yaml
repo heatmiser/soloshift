@@ -1,0 +1,7 @@
+---
+- hosts: hypervisor
+  become: true
+  tasks:
+  - name: "Deploy VMs for OCP4 Solo Lab"
+    import_role:
+      name: ocp4-solo-vmprovision
