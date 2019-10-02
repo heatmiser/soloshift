@@ -1,0 +1,14 @@
+---
+# Clear kernel cache
+
+- hosts: aio
+  vars_files:
+    - ../vars/main.yml
+  remote_user: core
+  become: yes
+  gather_facts: no
+
+  pre_tasks:
+  - name: 'Clear memory cache'
+    raw: 'sync; echo 3 > /proc/sys/vm/drop_caches'
+
