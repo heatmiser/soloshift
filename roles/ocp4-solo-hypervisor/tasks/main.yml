@@ -1,0 +1,24 @@
+---
+# Setup OCP4 Solo Lab Hypervisor Node
+
+- name: Install base packages
+  yum:
+    name:
+      - vim
+      - bash-completion
+      - podman
+      - "@virtualization"
+      - guestfs-browser
+      - libguestfs-tools
+      - python-libguestfs
+      - virt-top
+    state: present
+  when:
+      - ansible_distribution == 'Fedora'
+
+- name: Install libselinux-python package
+  yum:
+    name:
+      - libselinux-python
+  when:
+      - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
