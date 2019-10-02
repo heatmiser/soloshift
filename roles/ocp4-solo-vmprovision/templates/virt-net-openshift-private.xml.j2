@@ -1,0 +1,16 @@
+<network connections='1'>
+    <name>{{ ocp_vms_openshift_release }}-private</name>
+    <uuid>{{ 9999999999999999999999 | random | to_uuid }}</uuid>
+    {% if ocp_vms_net_nat %}
+    <forward mode='nat'>
+      <nat>
+        <port start='1024' end='65535'/>
+      </nat>
+    {% endif %}
+    </forward>
+    <bridge name='{{ ocp_vms_openshift_release }}-br' stp='on' delay='0'/>
+    <mac address='{{ '52:54:00' | random_mac }}'/>
+    <domain name='{{ ocp_vms_openshift_release }}-private'/>
+    <ip address='{{ ocp_vms_net_cidr | ipaddr('next_usable') }}' netmask='{{ ocp_vms_net_cidr | ipaddr('netmask') }}'>
+    </ip>
+</network>

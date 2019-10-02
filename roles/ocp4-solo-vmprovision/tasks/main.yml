@@ -1,0 +1,512 @@
+---
+- name: ansible-playbook pwd
+  run_once: True
+  set_fact:
+    ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+  failed_when: ansible_playbook_pwd == ''
+
+- name: current local user
+  run_once: True
+  set_fact:
+    ansible_local_user: "{{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True) | d(lookup('env', 'USER'), True) |  d(lookup('env', 'user'), True) |  d(lookup('env', 'LOGNAME'), True) }}"
+  failed_when: ansible_local_user == ''
+  tags:
+    - ssh_key
+
+- name: current local group
+  run_once: True
+  set_fact:
+    ansible_local_group: "{{ lookup('pipe', 'id -gn') }}"
+  failed_when: ansible_local_group == ''
+  tags:
+    - ssh_key
+
+- name: current local user home
+  run_once: True
+  set_fact:
+    ansible_local_home: "{{ lookup('env', 'HOME') }}"
+  failed_when: ansible_local_home == ''
+  tags:
+    - ssh_key
+
+- name: User .ssh dir is present
+  file: 
+    path: "{{ ansible_local_home }}/.ssh"
+    state: directory
+    mode: 0700
+    owner: "{{ ansible_local_user }}"
+  tags:
+    - ssh_key
+
+- name: OpenSSH key pair
+  openssh_keypair:
+    path: "{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa"
+    owner: "{{ ansible_local_user }}"
+    type: ecdsa
+    size: 521
+  tags:
+    - ssh_key
+
+- name: Fix SSH dir permissions
+  file: path="{{ ansible_local_home }}/.ssh" state=directory owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0700"
+  tags:
+    - ssh_key
+
+- name: Fix SSH private key permissions
+  file: path="{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa" state=file owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0600"
+  tags:
+    - ssh_key
+
+- name: Fix SSH public key permissions
+  file: path="{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub" state=file owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0644"
+  tags:
+    - ssh_key
+
+- name: Create utility machine disks
+  # Create a disk size that is 1GB more than expected to avoid partitioning issues.
+  command: "qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}_{{ item.name }}.qcow2 {{ item.size + 1 }}G"
+  args:
+    creates: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}_{{ item.name }}.qcow2"
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  when: not ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_images
+
+- name: Create a backing VM image for resizing
+  command: qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }} {{ ocp_vms_utility_size}}G
+  when: ocp_vms_preprovisioned
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  tags:
+    - ocp_vms_resize
+
+- name: Resize the backing VM image
+  command: >
+    virt-resize --expand /dev/sda1
+    {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }}
+    {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}
+  when: ocp_vms_preprovisioned
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  tags:
+    - ocp_vms_resize
+
+- name: Configure the backing VM image root password
+  command: >
+    virt-customize
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}
+    --root-password password:{{ ocp_vms_password }}
+    --ssh-inject root:file:{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub
+    --run-command 'restorecon -R /root/.ssh'
+    --uninstall cloud-init
+  no_log: "{{ ocp_vms_no_log }}"
+  when: ocp_vms_preprovisioned
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+
+- name: Reset machine-id in backing VM image
+  command: virt-sysprep --operations machine-id -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}
+  when: ocp_vms_preprovisioned
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+
+- name: Creating utility VM images (via Ansible copy)
+  copy:
+    src: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+    dest: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
+    remote_src: True
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  loop: "{{ ocp_vms_utility_node }}"
+  when: ocp_vms_preprovisioned and
+        (ocp_vms_copy_method == "ansible")
+
+- name: Creating utility VM images (lab VMs utilizing backing VM image - qemu-img)
+  command: >
+    qemu-img create -f qcow2 -b
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  loop: "{{ ocp_vms_utility_node }}"
+  when: ocp_vms_preprovisioned and
+        (ocp_vms_copy_method == "qemu-img")
+
+- name: Creating utility VM images (via cp --reflink)
+  command: >
+    cp --reflink
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  loop: "{{ ocp_vms_utility_node }}"
+  when: ocp_vms_preprovisioned and
+        (ocp_vms_copy_method == "reflink")
+
+- name: Create private provisioning network xml definition
+  template:
+    src: virt-net-openshift-private.xml.j2
+    dest: /tmp/virt-net-openshift-private.xml
+  tags:
+    - template
+    - ocp_vms_networks
+
+- name: Create private provisioning network
+  virt_net:
+    name: "{{ ocp_vms_openshift_release }}-private"
+    command: define
+    xml: '{{ lookup("file", "/tmp/virt-net-openshift-private.xml") }}'
+  tags:
+    - ocp_vms_networks
+
+- name: Start and enable the network
+  virt_net:
+    name: "{{ ocp_vms_openshift_release }}-private"
+    state: active
+    autostart: True
+  tags:
+    - ocp_vms_networks
+
+- name: Create the utility kickstart file
+  template:
+    src: utility-{{ ocp_vms_utility_os }}.cfg.j2
+    dest: /tmp/ocp_vms_utility.cfg
+    force: True
+  when: not ocp_vms_preprovisioned
+  tags:
+    - template
+
+- name: "Generate utility ifcfg mac addr and set fact"
+  set_fact:
+    utility_mac_addr: "{{ '52:54:00' | random_mac }}"
+  when: ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_utility
+    - util_ifcfg
+
+- name: Create the utility virtual machine
+  command: >
+    virt-install
+    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_utility_name }}
+    --vcpus {{ ocp_vms_utility_cpus }}
+    --memory {{ item.ram }}
+    --controller type=scsi,model=virtio-scsi \
+    {% if ocp_vms_hugepages %}--memorybacking hugepages=on{% endif %}
+    --os-variant rhel7.0
+    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_utility_name }}.qcow2,bus=scsi,discard='unmap',format=qcow2
+    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ utility_mac_addr }}
+    {% if not ocp_vms_preprovisioned %}
+    --location {{ ocp_vms_el_url }}
+    --initrd-inject /tmp/ocp_vms_utility.cfg --extra-args="inst.ks=file:/ocp_vms_utility.cfg{% if ocp_vms_console %} console=tty0 console=ttyS0,115200n8{% endif %}"
+    {% endif %}
+    --boot menu=on --nographics --noreboot --serial pty
+    {% if ocp_vms_console and ocp_vms_preprovisioned %}
+    --console pty,target_type=virtio
+    {% endif %}
+    {% if ocp_vms_no_auto_vm_console %}
+    --noautoconsole
+    {% endif %}
+    {% if ocp_vms_preprovisioned %}--import{% endif %}
+  loop: "{{ ocp_vms_utility_node }}"
+  tags:
+    - ocp_vms_utility
+
+- name: Generate utility ifcfg-eth0 file
+  template:
+    src: utility-ifcfg-eth0.j2
+    dest: /tmp/ifcfg-eth0
+    force: True
+  vars:
+    net_with_mask: "{{ ocp_vms_net_cidr | ipaddr('network') }}/{{ ocp_vms_net_cidr | ipaddr('netmask') }}"
+  when: ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_utility
+    - util_ifcfg
+
+- name: Import utility ifcfg-eth0 into vm image and set hostname
+  command: >
+    virt-customize
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_utility_name }}.qcow2
+    --hostname {{ ocp_vms_utility_name }}.{{ ocp_vms_openshift_release }}.{{ ocp_vms_openshift_subdomain }}
+    --copy-in /tmp/ifcfg-eth0:/etc/sysconfig/network-scripts
+    --selinux-relabel
+  no_log: "{{ ocp_vms_no_log }}"
+  when: ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_utility
+
+- name: Create OpenShift bootstrap virtual machines
+  command: >
+    virt-install
+    --name {{ ocp_vms_openshift_release }}.{{ item.name }}
+    --cpu=host --vcpus {{ ocp_vms_bootstrap_cpus }}
+    --memory {{ item.ram }}
+    {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
+    --os-variant rhel8.0
+    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
+    --controller type=scsi,model=virtio-scsi
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ item.size }}
+    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --boot hd,network,menu=on --noreboot
+    {% if ocp_vms_console %}
+    --console pty,target_type=virtio
+    {% endif %}
+    {% if ocp_vms_no_auto_vm_console %}
+    --noautoconsole
+    {% endif %}
+  loop: "{{ ocp_vms_bootstrap_node }}"
+  tags:
+    - ocp_vms_cluster
+
+- name: Create OpenShift master virtual machines
+  command: >
+    virt-install
+    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_master_nodes[0].name }}{{ item }}
+    --cpu=host --vcpus {{ ocp_vms_master_cpus }}
+    --memory {{ ocp_vms_master_nodes[0].ram }}
+    {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
+    --os-variant rhel8.0
+    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
+    --controller type=scsi,model=virtio-scsi
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_master_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_master_nodes[0].size }}
+    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --boot hd,network,menu=on --noreboot
+    {% if ocp_vms_console %}
+    --console pty,target_type=virtio
+    {% endif %}
+    {% if ocp_vms_no_auto_vm_console %}
+    --noautoconsole
+    {% endif %}
+  with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
+  tags:
+    - ocp_vms_cluster
+
+- name: Create OpenShift infrastructure virtual machines
+  command: >
+    virt-install
+    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }}
+    --cpu=host --vcpus {{ ocp_vms_infra_cpus }}
+    --memory {{ ocp_vms_infra_nodes[0].ram }}
+    {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
+    --os-variant rhel8.0
+    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
+    --controller type=scsi,model=virtio-scsi
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_infra_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_infra_nodes[0].size }}
+    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --boot hd,network,menu=on --noreboot
+    {% if ocp_vms_console %}
+    --console pty,target_type=virtio
+    {% endif %}
+    {% if ocp_vms_no_auto_vm_console %}
+    --noautoconsole
+    {% endif %}
+  with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
+  when: ocp_vms_infra_count > 0
+  tags:
+    - ocp_vms_cluster
+
+- name: Create OpenShift worker virtual machines
+  command: >
+    virt-install
+    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }}
+    --cpu=host --vcpus {{ ocp_vms_worker_cpus }}
+    --memory {{ ocp_vms_worker_nodes[0].ram }}
+    {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
+    --os-variant rhel8.0
+    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
+    --controller type=scsi,model=virtio-scsi
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_worker_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_worker_nodes[0].size }}
+    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --boot hd,network,menu=on --noreboot
+    {% if ocp_vms_console %}
+    --console pty,target_type=virtio
+    {% endif %}
+    {% if ocp_vms_no_auto_vm_console %}
+    --noautoconsole
+    {% endif %}
+  with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
+  tags:
+    - ocp_vms_cluster
+
+- name: record bootstrap VM mac address
+  shell: >
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ item.name }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    echo "[bootstrap]" > /tmp/vm_mac_addrs.ini;
+    echo "{{ item.name }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
+  loop: "{{ ocp_vms_bootstrap_node }}"
+  tags:
+    - vm_mac_dict
+
+- name: start master VM mac address ini section
+  shell: >
+    echo "" >> /tmp/vm_mac_addrs.ini;
+    echo "[masters]" >> /tmp/vm_mac_addrs.ini
+  tags:
+    - vm_mac_dict
+
+- name: record master VM mac address
+  shell: >
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ ocp_vms_master_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    echo "{{ ocp_vms_master_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
+  with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
+  tags:
+    - vm_mac_dict
+
+- name: start infra VM mac address ini section
+  shell: >
+    echo "" >> /tmp/vm_mac_addrs.ini;
+    echo "[infras]" >> /tmp/vm_mac_addrs.ini
+  when: ocp_vms_infra_count > 0
+  tags:
+    - vm_mac_dict
+
+- name: record infra VM mac address
+  shell: >
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    echo "{{ ocp_vms_infra_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
+  with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
+  when: ocp_vms_infra_count > 0
+  tags:
+    - vm_mac_dict
+
+- name: start worker VM mac address ini section
+  shell: >
+    echo "" >> /tmp/vm_mac_addrs.ini;
+    echo "[workers]" >> /tmp/vm_mac_addrs.ini
+  tags:
+    - vm_mac_dict
+
+- name: record worker VM mac address
+  shell: >
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    echo "{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
+  with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
+  tags:
+    - vm_mac_dict
+
+- name: creating empty master dict
+  set_fact:
+    master_dict: {}
+  tags:
+    - vm_mac_dict    
+
+- name: creating empty infra dict
+  set_fact:
+    infra_dict: {}
+  tags:
+    - vm_mac_dict
+
+- name: creating empty worker dict
+  set_fact:
+    worker_dict: {}
+  tags:
+    - vm_mac_dict
+
+- name: "Append dict seq - masters"
+  vars:
+    master_vm: "{{ ocp_vms_master_nodes[0].name }}{{ item }}"
+    master_mac: "{{ lookup('ini', '{{ ocp_vms_master_nodes[0].name }}{{ item }}.mac section=masters file=/tmp/vm_mac_addrs.ini') }}"
+  set_fact:
+    master_dict: "{{ master_dict | default({}) | combine( { master_vm : master_mac } ) }}"
+  with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
+  tags:
+    - vm_mac_dict
+
+- name: "Append dict seq - infras"
+  vars:
+    infra_vm: "{{ ocp_vms_infra_nodes[0].name }}{{ item }}"
+    infra_mac: "{{ lookup('ini', '{{ ocp_vms_infra_nodes[0].name }}{{ item }}.mac section=infras file=/tmp/vm_mac_addrs.ini') }}"
+  set_fact:
+    infra_dict: "{{ infra_dict | default({}) | combine( { infra_vm : infra_mac } ) }}"
+  with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
+  when: ocp_vms_infra_count > 0
+  tags:
+    - vm_mac_dict
+
+- name: "Append dict seq - workers"
+  vars:
+    worker_vm: "{{ ocp_vms_worker_nodes[0].name }}{{ item }}"
+    worker_mac: "{{ lookup('ini', '{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac section=workers file=/tmp/vm_mac_addrs.ini') }}"
+  set_fact:
+    worker_dict: "{{ worker_dict | default({}) | combine( { worker_vm : worker_mac } ) }}"
+  with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
+  tags:
+    - vm_mac_dict
+
+- name: Save OCP4 vars.yaml configuration to group_vars all directory
+  template:
+    src: "vars.yaml.j2"
+    dest: "{{ ansible_playbook_pwd }}/inventory/group_vars/all/vars.yaml"
+    mode: 0660
+    owner: "{{ ansible_local_user }}"
+    group: "{{ ansible_local_group }}"
+    force: True
+  tags:
+    - template
+
+- name: Create the oc4upi directory
+  file:
+    path: "{{ ansible_playbook_pwd }}/ocp4upi"
+    state: directory
+    mode: 0700
+    owner: "{{ ansible_local_user }}"
+    group: "{{ ansible_local_group }}"
+  tags:
+    - template
+
+- name: Save Ansible inventory to local inventory directory
+  template:
+    src: inventory.ini.j2
+    dest: "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_release }}_vms"
+    mode: 0660
+    owner: "{{ ansible_local_user }}"
+    group: "{{ ansible_local_group }}"
+    force: True
+  tags:
+    - template
+
+- name: Create OpenShift UPI install-config.yaml intermediate template
+  template:
+    src: install-config.yaml.j2
+    dest: "{{ playbook_dir }}/install-config.yaml.intermediate.j2"
+    mode: 0660
+    owner: "{{ ansible_local_user }}"
+    group: "{{ ansible_local_group }}"
+    force: True
+  vars:
+     ocp_vms_ssh_pubkey: "{{ lookup('file', '{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub') }}"
+  tags:
+    - template
+    - install_config_intrmdt
+
+- name: Register pull-secret into variable via cat
+  shell: >
+    cat "{{ ansible_playbook_pwd }}/{{ ocp_vms_openshift_pullsecret_file }}"
+  register: pull_secret_contents
+  tags:
+    - install_config_intrmdt
+
+- name: Register pull-secret contents stdout into variable
+  set_fact:
+    # Note space at beginning, in front of variable substitution of pull secret contents.
+    # This is on purpose. Addition of the space causes underlying python to the load the
+    # pull secret contents as a text string and not a list.  Remove the preceding space and
+    # the pull secret contents are loaded as a list...and when used as a substitution in a
+    # a jinja template, all double quotes are replaced with single quotes. This causes an
+    # error with the openshift-installer. Leave the preceding single space.
+    pull_secret_stdout: " {{ pull_secret_contents.stdout }}"
+  tags:
+    - install_config_intrmdt
+
+- name: Create OpenShift UPI install-config.yaml
+  template:
+    src: install-config.yaml.intermediate.j2
+    dest: "{{ ansible_playbook_pwd }}/ocp4upi/install-config.yaml"
+    mode: 0660
+    owner: "{{ ansible_local_user }}"
+    group: "{{ ansible_local_group }}"
+    force: True
+  tags:
+    - install_config_intrmdt

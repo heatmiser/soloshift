@@ -1,0 +1,43 @@
+# Operating system install
+install
+eula --agreed
+url --url "{{ ocp_vms_el_url }}"
+text
+
+# Language
+lang en_US.UTF-8
+keyboard us
+
+# Time
+timezone America/New_York --utc
+
+# Storage
+ignoredisk --only-use vda
+zerombr
+clearpart --all --drives vda
+bootloader --boot-drive vda
+part /boot --asprimary --fstype ext4 --size=512
+part swap --size=2048
+part / --asprimary --fstype xfs --grow
+
+# Security
+auth --enableshadow --passalgo=sha512
+rootpw {{ ocp_vms_password }}
+
+# Network
+network --device eth0 --onboot yes --bootproto dhcp
+network --device eth1 --onboot no --bootproto static --ip 10.0.0.11 --netmask 255.255.255.0 --gateway 10.0.0.1 --nameserver 8.8.8.8
+
+# Firewall
+#firewall --service=ssh
+
+# Packages
+%packages
+@core
+%end
+
+## Services
+services --disabled NetworkManager
+services --enabled network,sshd
+
+reboot

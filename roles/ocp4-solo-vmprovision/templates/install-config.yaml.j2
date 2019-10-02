@@ -1,0 +1,24 @@
+apiVersion: v1
+baseDomain: {{ ocp_vms_openshift_subdomain }}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: {{ ocp_vms_worker_count }}
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: {{ ocp_vms_master_count }}
+metadata:
+  name: {{ ocp_vms_openshift_release }}
+networking:
+  clusterNetworks:
+  - cidr: 10.254.0.0/16
+    hostPrefix: 24
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}{% raw %}
+pullSecret: '{{ pull_secret_stdout }}'
+{% endraw %}
+sshKey: '{{ ocp_vms_ssh_pubkey }}'

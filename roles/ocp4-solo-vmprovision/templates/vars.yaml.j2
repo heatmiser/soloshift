@@ -1,0 +1,47 @@
+---
+disk: sda
+util:
+  name: "{{ ocp_vms_utility_name }}"
+  ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(8) }}"
+  vm_image_backing_file: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+staticips: false
+matchbox: true
+dns:
+  domain: "{{ ocp_vms_openshift_subdomain }}"
+  clusterid: "{{ ocp_vms_openshift_release }}"
+  forwarder1: "8.8.8.8"
+  forwarder2: "8.8.4.4"
+dhcp:
+  router: "{{ ocp_vms_net_cidr | ipaddr('next_usable') }}"
+  bcast: "{{ ocp_vms_net_cidr | ipaddr('broadcast') }}"
+  netmask: "{{ ocp_vms_net_cidr | ipaddr('netmask') }}"
+  poolstart: "{{ ocp_vms_net_cidr | next_nth_usable(100) }}"
+  poolend: "{{ ocp_vms_net_cidr | ipaddr('last_usable') }}"
+  ipid: "{{ ocp_vms_net_cidr | ipaddr('network') }}"
+  netmaskid: "{{ ocp_vms_net_cidr | ipaddr('netmask') }}"
+bootstrap:
+  name: "{{ ocp_vms_bootstrap_node[0].name }}"
+  ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(9) }}"
+  macaddr: "{{ lookup('ini', '{{ ocp_vms_bootstrap_node[0].name }}.mac section=bootstrap file=/tmp/vm_mac_addrs.ini') }}"
+masters:
+{% for host, macaddr in master_dict.items() %}
+  - name: "{{ host }}"
+    ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(9 +loop.index) }}"
+    macaddr: "{{ macaddr }}"
+{% endfor %}
+{% if infra_dict|length > 0 %}
+infras:
+{% for host, macaddr in infra_dict.items() %}
+  - name: "{{ host }}"
+    ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(19 +loop.index) }}"
+    macaddr: "{{ macaddr }}"
+{% endfor %}
+{% else %}
+infras: []
+{% endif %}
+workers:
+{% for host, macaddr in worker_dict.items() %}
+  - name: "{{ host }}"
+    ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(29 +loop.index) }}"
+    macaddr: "{{ macaddr }}"
+{% endfor %}

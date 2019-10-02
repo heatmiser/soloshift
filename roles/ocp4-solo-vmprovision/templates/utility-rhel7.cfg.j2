@@ -1,0 +1,94 @@
+# System authorization information
+auth --enableshadow --passalgo=sha512
+# Use CDROM installation media
+cdrom
+# Use text or graphical install?
+text
+# Run the Setup Agent on first boot
+firstboot --disable
+ignoredisk --only-use=sda
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+# Do not run the Setup Agent on first boot
+firstboot --disabled
+
+# Network information
+network  --bootproto=static --device=eth0 --gateway=10.10.0.1 --ip=10.10.0.20 --nameserver=8.8.8.8 --netmask=255.255.255.0 --ipv6=auto --activate
+network  --hostname=osp-util
+
+# Root password
+rootpw --plaintext changeme
+# System services
+services --enabled="chronyd"
+# System timezone
+timezone Etc/UTC --isUtc --ntpservers=0.rhel.pool.ntp.org,1.rhel.pool.ntp.org,2.rhel.pool.ntp.org,3.rhel.pool.ntp.org
+# System bootloader configuration
+zerombr
+bootloader --append=" crashkernel=auto" --location=mbr --boot-drive=sda
+# Partition clearing information
+clearpart --all --initlabel
+# Disk partitioning information
+part pv.156 --fstype="lvmpv" --ondisk=sda --size=29695
+part /boot --fstype="xfs" --ondisk=sda --size=1024
+volgroup vg0 --pesize=4096 pv.156
+logvol /  --fstype="xfs" --size=29184 --name=root --vgname=vg0
+logvol swap  --fstype="swap" --size=508 --name=swap --vgname=vg0
+shutdown
+
+%packages --nobase
+@core --nodefaults
+-aic94xx-firmware*
+-alsa-*
+-biosdevname
+-btrfs-progs*
+-dhclient
+-dhcp*
+-dracut-network
+-iprutils
+-ivtv*
+-iwl*firmware
+-libertas*
+-NetworkManager*
+-plymouth*
+-postfix
+chrony
+kexec-tools
+%end
+
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end
+
+%post
+# Register Red Hat Subscription
+# Choose RH username/password OR subscription org ID and subscription activation key (more precise)
+#rhn_username_org="RHaccountusername"
+#rhn_password_act_key="RHaccountpassword"
+rhn_username_org="11939617"
+rhn_password_act_key="rhdevkey"
+rhn_pool_id=""
+echo "rhn_username_org     ==> $rhn_username_org"
+echo "rhn_password_act_key ==> $rhn_password_act_key"
+echo "rhn_pool_id          ==> $rhn_pool_id"
+subscription-manager register --username="$rhn_username_org" --password="$rhn_password_act_key" || subscription-manager register --activationkey="$rhn_password_act_key" --org="$rhn_username_org"
+if [ "$rhn_pool_id" != "null" ]; then
+    subscription-manager attach --pool="$rhn_pool_id"
+fi
+subscription-manager repos --disable="*"
+subscription-manager repos --enable="rhel-7-server-rpms"
+subscription-manager repos --enable="rhel-7-server-extras-rpms"
+# Install latest repo update
+yum -y update
+yum -y install wget curl ansible git
+
+# Install root certificates
+yum -y install ca-certificates
+%end
