@@ -12,9 +12,19 @@
       - libguestfs-tools
       - python-libguestfs
       - virt-top
+      - ksmtuned
     state: present
   when:
       - ansible_distribution == 'Fedora'
+
+- name: "Starting {{ item }} service"
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items:
+    - ksm
+    - ksmtuned
 
 - name: Install libselinux-python package
   yum:
