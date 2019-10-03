@@ -1,10 +1,7 @@
 ---
 # Clear kernel cache
 
-- hosts: all
-  vars_files:
-    - vars.yaml
-  remote_user: core
+- hosts: util masters infras workers
   become: yes
   gather_facts: no
 
