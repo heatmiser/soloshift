@@ -1,21 +1,20 @@
 # soloshift
 Ansible automation for deploying a local "all in one" OpenShift 4 cluster
 
-SoloShift
-=========
-
-OpenShift 4 installed on a single system
-
 Requirements
 ------------
 
 A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora.
 
-`# git clone this repo`
+`# git clone https://github.com/heatmiser/soloshift.git`
 
-Edit `inventory/group_vars/all/default_vars.yaml`
+`# cd soloshift`
 
-Choose either pair of:
+Copy `inventory/group_vars/all/default_vars.yaml`
+to `inventory/group_vars/all/my_vars.yaml`
+
+
+If utilizing RHEL for the base hypervisor system, edit `inventory/group_vars/all/my_vars.yaml` and choose either pair of:
 
 - organization ID and activation key
   
@@ -32,16 +31,18 @@ or
 * `redhat_subscription_username`: If not using an activation key, specify Red Hat username. 
 * `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
 
-* `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2
-* `ocp_vms_openshift_release`: ocp41
-* `ocp_vms_openshift_subdomain`: domain.com
-* `ocp_vms_libvirt_images_location`: /u01/libvirt/images
-* `ocp_vms_net_cidr`: 192.168.8.0/24
+* `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads
+* `ocp_vms_openshift_release`: ocp41 - name for top level DNS sub-domain
+* `ocp_vms_openshift_subdomain`: domain.com - base DNS subdomain
+* `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
+* `ocp_vms_net_cidr`: 192.168.8.0/24 - internal subnet for cluster to use
 * `ocp_vms_master_count`: 1
 * `ocp_vms_infra_count`: 1
 * `ocp_vms_worker_count`: 1
-* `ocp_vms_openshift_pullsecret_file`: pull-secret.txt
+* `ocp_vms_openshift_pullsecret_file`: pull-secret.txt - download from https://cloud.redhat.com/openshift/install/metal/user-provisioned
 
+Deploy All-in-One OCP4
+------------
 
 `# ansible-galaxy install --role-path ./roles -r requirements.yaml`
 
@@ -53,7 +54,7 @@ or
 
 `# ansible-playbook playbooks/03-ocp-init.yaml`
 
-Either access the util vm console via virt-viewer or ssh into the util vm as root
+Either access the util vm console via virt-viewer or ssh into the util vm as root and execute:
 
 `# openshift-install --dir=/root/ocp4upi wait-for bootstrap-complete --log-level debug`
 
