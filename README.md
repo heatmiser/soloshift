@@ -44,7 +44,7 @@ or
 Deploy All-in-One OCP4
 ------------
 
-`# ansible-galaxy install --role-path ./roles -r requirements.yaml`
+`# ansible-galaxy install -p ./roles -r requirements.yaml`
 
 `# ansible-playbook playbooks/00-ocp-hyper.yaml`
 
