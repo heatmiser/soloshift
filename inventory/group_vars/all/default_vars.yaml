@@ -7,7 +7,7 @@ ocp_vms_preprovisioned: True
 ocp_vms_base_image: rhel-server-7.7-20190924-x86_64-kvm.qcow2
 ocp_vms_openshift_release: ocp41
 ocp_vms_openshift_subdomain: local.dc
-ocp_vms_libvirt_images_location:
+ocp_vms_libvirt_images_location: /var/lib/libvirt/images/
 ocp_vms_net_cidr: 192.168.8.0/24
 ocp_vms_master_count: 1
 ocp_vms_infra_count: 1
