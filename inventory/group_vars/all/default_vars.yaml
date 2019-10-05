@@ -4,7 +4,9 @@ redhat_subscription_password:
 redhat_subscription_org_id:
 redhat_subscription_activationkey:
 ocp_vms_preprovisioned: True
-ocp_vms_base_image: rhel-server-7.7-20190924-x86_64-kvm.qcow2
+ocp_vms_base_image: rhel-server-7.7-x86_64-kvm.qcow2
+#ocp_vms_base_image: CentOS-7-x86_64-GenericCloud.qcow2
+#ocp_vms_base_image: Fedora-Cloud-Base-30-1.2.x86_64.qcow2
 ocp_vms_openshift_release: ocp41
 ocp_vms_openshift_subdomain: local.dc
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images/
