@@ -3,7 +3,7 @@ disk: sda
 util:
   name: "{{ ocp_vms_utility_name }}"
   ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(8) }}"
-  vm_image_backing_file: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+  vm_image_backing_file: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
 staticips: false
 matchbox: true
 dns:

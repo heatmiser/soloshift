@@ -62,6 +62,25 @@
   tags:
     - ssh_key
 
+- name: Create VM image OS properties file
+  shell: >
+    virt-cat -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} /etc/*-release | grep = > /tmp/vm_base_image.properties
+  tags:
+    - ocp_vms_base_image_props
+
+- name: Set VM image OS distribution
+  vars:
+    regex: "[`'\"]"
+    replace: ""
+  set_fact:
+    ocp_vms_base_image_distro: "{{ lookup('ini', 'ID type=properties file=/tmp/vm_base_image.properties')|regex_replace(regex, replace) }}"
+  tags:
+    - ocp_vms_base_image_props
+
+- debug: msg="ocp_vms_base_image_distro = {{ ocp_vms_base_image_distro }}"
+  tags:
+    - ocp_vms_base_image_props
+
 - name: Create utility machine disks
   # Create a disk size that is 1GB more than expected to avoid partitioning issues.
   command: "qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}_{{ item.name }}.qcow2 {{ item.size + 1 }}G"
@@ -74,7 +93,7 @@
     - ocp_vms_images
 
 - name: Create a backing VM image for resizing
-  command: qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }} {{ ocp_vms_utility_size}}G
+  command: qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }} {{ ocp_vms_utility_size}}G
   when: ocp_vms_preprovisioned
   with_items:
     - "{{ ocp_vms_utility_node }}"
@@ -85,17 +104,17 @@
   command: >
     virt-resize --expand /dev/sda1
     {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }}
-    {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}
+    {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}
   when: ocp_vms_preprovisioned
   with_items:
     - "{{ ocp_vms_utility_node }}"
   tags:
     - ocp_vms_resize
 
-- name: Configure the backing VM image root password
+- name: Configure the backing VM image root password, plus more
   command: >
     virt-customize
-    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}
     --root-password password:{{ ocp_vms_password }}
     --ssh-inject root:file:{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub
     --run-command 'restorecon -R /root/.ssh'
@@ -106,14 +125,14 @@
     - "{{ ocp_vms_utility_node }}"
 
 - name: Reset machine-id in backing VM image
-  command: virt-sysprep --operations machine-id -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}
+  command: virt-sysprep --operations machine-id -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}
   when: ocp_vms_preprovisioned
   with_items:
     - "{{ ocp_vms_utility_node }}"
 
 - name: Creating utility VM images (via Ansible copy)
   copy:
-    src: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+    src: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     dest: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
     remote_src: True
   with_items:
@@ -125,7 +144,7 @@
 - name: Creating utility VM images (lab VMs utilizing backing VM image - qemu-img)
   command: >
     qemu-img create -f qcow2 -b
-    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
   with_items:
     - "{{ ocp_vms_utility_node }}"
@@ -136,7 +155,7 @@
 - name: Creating utility VM images (via cp --reflink)
   command: >
     cp --reflink
-    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_preprovisioned_image }}"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
   with_items:
     - "{{ ocp_vms_utility_node }}"
@@ -236,6 +255,20 @@
   when: ocp_vms_preprovisioned
   tags:
     - ocp_vms_utility
+
+- name: CentOS needs resolv.conf to be configured initially
+  shell: >
+    echo "nameserver 8.8.8.8" > /tmp/resolv.conf;
+    virt-customize
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_utility_name }}.qcow2
+    --copy-in /tmp/resolv.conf:/etc
+    --selinux-relabel
+  no_log: "{{ ocp_vms_no_log }}"
+  when:
+    - ocp_vms_preprovisioned
+    - ocp_vms_base_image_distro == 'centos'
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
 
 - name: Create OpenShift bootstrap virtual machines
   command: >

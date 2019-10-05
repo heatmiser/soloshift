@@ -3,7 +3,7 @@ ocp_vms_copy_method: qemu-img
 ocp_vms_cpu_passthrough: True
 ocp_vms_no_log: False
 ocp_vms_preprovisioned: False
-ocp_vms_preprovisioned_image: rhel-server-ocpbacking-x86_64-kvm.qcow2
+ocp_vms_preprovisioned_basename: ocpbacking-x86_64-kvm.qcow2
 ocp_vms_password: ocp4ever
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images
 ocp_vms_net_cidr: 10.0.0.0/24
