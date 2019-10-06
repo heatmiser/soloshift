@@ -1,9 +1,0 @@
-<network connections='1'>
-    <name>ocp4-private</name>
-    <uuid>f6af573e-b149-4f60-9768-a5991f2ade06</uuid>
-    <bridge name='virbr102' stp='on' delay='0'/>
-    <mac address='84:dc:ee:be:7b:8a'/>
-    <domain name='openshift-private'/>
-    <ip address='10.0.0.1' netmask='255.0.0.0'>
-    </ip>
-</network>
