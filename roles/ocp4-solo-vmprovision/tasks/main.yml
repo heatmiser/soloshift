@@ -30,7 +30,7 @@
     - ssh_key
 
 - name: User .ssh dir is present
-  file: 
+  file:
     path: "{{ ansible_local_home }}/.ssh"
     state: directory
     mode: 0700
