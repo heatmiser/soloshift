@@ -1,7 +1,7 @@
 ---
 # Setup OCP4 Solo Lab Hypervisor Node
 
-- name: Install base packages
+- name: Install base packages on Fedora
   yum:
     name:
       - vim
@@ -16,6 +16,21 @@
     state: present
   when:
       - ansible_distribution == 'Fedora'
+
+- name: Install base packages on RHEL
+  yum:
+    name:
+      - vim
+      - bash-completion
+      - podman
+      - "@virtualization-hypervisor"
+      - "@virtualization-client"
+      - "@virtualization-platform"
+      - "@virtualization-tools"
+      - ksmtuned
+    state: present
+  when:
+      - ansible_distribution == 'RedHat'
 
 - name: "Starting {{ item }} service"
   service:

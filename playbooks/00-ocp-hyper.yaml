@@ -7,6 +7,13 @@
   - name: "Register host hypervisor with RHN and add repos"
     import_role:
       name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_enable_explicit_repos_only: "yes"
+      redhat_subscription_disable_repos: []
+      redhat_subscription_enable_repos:
+        - rhel-7-server-rpms
+        - rhel-7-server-extras-rpms
+        - rhel-7-server-ansible-2.8-rpms
     when:
       - ansible_distribution == 'RedHat'
 
