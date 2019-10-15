@@ -27,7 +27,7 @@
       - "@virtualization-client"
       - "@virtualization-platform"
       - "@virtualization-tools"
-      - ksmtuned
+      - libguestfs-tools
     state: present
   when:
       - ansible_distribution == 'RedHat'
