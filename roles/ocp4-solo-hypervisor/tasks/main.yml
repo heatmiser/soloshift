@@ -28,6 +28,7 @@
       - "@virtualization-platform"
       - "@virtualization-tools"
       - libguestfs-tools
+      - python-netaddr
     state: present
   when:
       - ansible_distribution == 'RedHat'
