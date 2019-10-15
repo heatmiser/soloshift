@@ -135,8 +135,6 @@
     src: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     dest: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
     remote_src: True
-  with_items:
-    - "{{ ocp_vms_utility_node }}"
   loop: "{{ ocp_vms_utility_node }}"
   when: ocp_vms_preprovisioned and
         (ocp_vms_copy_method == "ansible")
@@ -146,8 +144,6 @@
     qemu-img create -f qcow2 -b
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
-  with_items:
-    - "{{ ocp_vms_utility_node }}"
   loop: "{{ ocp_vms_utility_node }}"
   when: ocp_vms_preprovisioned and
         (ocp_vms_copy_method == "qemu-img")
@@ -157,8 +153,6 @@
     cp --reflink
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
-  with_items:
-    - "{{ ocp_vms_utility_node }}"
   loop: "{{ ocp_vms_utility_node }}"
   when: ocp_vms_preprovisioned and
         (ocp_vms_copy_method == "reflink")
