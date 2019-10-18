@@ -13,6 +13,8 @@
       - python-libguestfs
       - virt-top
       - ksmtuned
+      - python2-netaddr
+      - python3-netaddr
     state: present
   when:
       - ansible_distribution == 'Fedora'
