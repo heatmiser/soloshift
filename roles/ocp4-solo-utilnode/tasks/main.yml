@@ -97,6 +97,12 @@
     src: reverse.j2
     dest: /var/named/reverse.db
 
+- name: "Edit hosts file"
+  lineinfile: dest=/etc/hosts regexp='.*{{ item }}$' line="127.0.0.1 {{item}}" state=present
+  with_items: "{{ util.name }}"
+  tags:
+    - util_hosts
+
 - name: Write out haproxy config file
   template:
     src: haproxy.cfg.j2
@@ -173,7 +179,7 @@
 
 - name: Register rhcos_mb_assets_changed variable
   set_fact:
-    rrhcos_mb_assets_changed: rhcos_mb_assets.stat.exists
+    rrhcos_mb_assets_exists: rhcos_mb_assets.stat.exists
   tags:
     - rhcos_mb_asset_files
 
@@ -186,7 +192,9 @@
     - rhcos-4.1.0-x86_64-installer-initramfs.img
     - rhcos-4.1.0-x86_64-installer-kernel
     - rhcos-4.1.0-x86_64-metal-bios.raw.gz
-  when: matchbox and rrhcos_mb_assets_changed
+  when: matchbox and not rrhcos_mb_assets_exists
+  tags:
+    - rhcos_mb_asset_files
 
 - name: Create matchbox profiles
   template:
