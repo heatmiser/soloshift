@@ -40,7 +40,7 @@
 
 - name: OpenSSH key pair
   openssh_keypair:
-    path: "{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa"
+    path: "{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_subdomain }}_id_ecdsa"
     owner: "{{ ansible_local_user }}"
     type: ecdsa
     size: 521
@@ -53,12 +53,12 @@
     - ssh_key
 
 - name: Fix SSH private key permissions
-  file: path="{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa" state=file owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0600"
+  file: path="{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_subdomain }}_id_ecdsa" state=file owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0600"
   tags:
     - ssh_key
 
 - name: Fix SSH public key permissions
-  file: path="{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub" state=file owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0644"
+  file: path="{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_subdomain }}_id_ecdsa.pub" state=file owner="{{ ansible_local_user }}" group="{{ ansible_local_group }}" mode="0644"
   tags:
     - ssh_key
 
@@ -83,9 +83,9 @@
 
 - name: Create utility machine disks
   # Create a disk size that is 1GB more than expected to avoid partitioning issues.
-  command: "qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}_{{ item.name }}.qcow2 {{ item.size + 1 }}G"
+  command: "qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}_{{ item.name }}.qcow2 {{ item.size + 1 }}G"
   args:
-    creates: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}_{{ item.name }}.qcow2"
+    creates: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}_{{ item.name }}.qcow2"
   with_items:
     - "{{ ocp_vms_utility_node }}"
   when: not ocp_vms_preprovisioned
@@ -116,7 +116,7 @@
     virt-customize
     -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}
     --root-password password:{{ ocp_vms_password }}
-    --ssh-inject root:file:{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub
+    --ssh-inject root:file:{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_subdomain }}_id_ecdsa.pub
     --run-command 'restorecon -R /root/.ssh'
     --uninstall cloud-init
   no_log: "{{ ocp_vms_no_log }}"
@@ -133,7 +133,7 @@
 - name: Creating utility VM images (via Ansible copy)
   copy:
     src: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
-    dest: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
+    dest: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
     remote_src: True
   loop: "{{ ocp_vms_utility_node }}"
   when: ocp_vms_preprovisioned and
@@ -143,7 +143,7 @@
   command: >
     qemu-img create -f qcow2 -b
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
-    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
   loop: "{{ ocp_vms_utility_node }}"
   when: ocp_vms_preprovisioned and
         (ocp_vms_copy_method == "qemu-img")
@@ -152,7 +152,7 @@
   command: >
     cp --reflink
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
-    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
   loop: "{{ ocp_vms_utility_node }}"
   when: ocp_vms_preprovisioned and
         (ocp_vms_copy_method == "reflink")
@@ -167,7 +167,7 @@
 
 - name: Create private provisioning network
   virt_net:
-    name: "{{ ocp_vms_openshift_release }}-private"
+    name: "{{ ocp_vms_openshift_subdomain }}-private"
     command: define
     xml: '{{ lookup("file", "/tmp/virt-net-openshift-private.xml") }}'
   tags:
@@ -175,7 +175,7 @@
 
 - name: Start and enable the network
   virt_net:
-    name: "{{ ocp_vms_openshift_release }}-private"
+    name: "{{ ocp_vms_openshift_subdomain }}-private"
     state: active
     autostart: True
   tags:
@@ -201,15 +201,15 @@
 - name: Create the utility virtual machine
   command: >
     virt-install
-    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_utility_name }}
+    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_utility_name }}
     --vcpus {{ ocp_vms_utility_cpus }}
     --memory {{ item.ram }}
     --controller type=scsi,model=virtio-scsi \
     {% if ocp_vms_hugepages %}--memorybacking hugepages=on{% endif %}
     --os-variant rhel7.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_utility_name }}.qcow2,bus=scsi,discard='unmap',format=qcow2
-    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ utility_mac_addr }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_utility_name }}.qcow2,bus=scsi,discard='unmap',format=qcow2
+    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ utility_mac_addr }}
     {% if not ocp_vms_preprovisioned %}
     --location {{ ocp_vms_el_url }}
     --initrd-inject /tmp/ocp_vms_utility.cfg --extra-args="inst.ks=file:/ocp_vms_utility.cfg{% if ocp_vms_console %} console=tty0 console=ttyS0,115200n8{% endif %}"
@@ -241,8 +241,8 @@
 - name: Import utility ifcfg-eth0 into vm image and set hostname
   command: >
     virt-customize
-    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_utility_name }}.qcow2
-    --hostname {{ ocp_vms_utility_name }}.{{ ocp_vms_openshift_release }}.{{ ocp_vms_openshift_subdomain }}
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_utility_name }}.qcow2
+    --hostname {{ ocp_vms_utility_name }}.{{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_openshift_rootdomain }}
     --copy-in /tmp/ifcfg-eth0:/etc/sysconfig/network-scripts
     --selinux-relabel
   no_log: "{{ ocp_vms_no_log }}"
@@ -254,7 +254,7 @@
   shell: >
     echo "nameserver 8.8.8.8" > /tmp/resolv.conf;
     virt-customize
-    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_utility_name }}.qcow2
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_utility_name }}.qcow2
     --copy-in /tmp/resolv.conf:/etc
     --selinux-relabel
   no_log: "{{ ocp_vms_no_log }}"
@@ -267,15 +267,15 @@
 - name: Create OpenShift bootstrap virtual machines
   command: >
     virt-install
-    --name {{ ocp_vms_openshift_release }}.{{ item.name }}
+    --name {{ ocp_vms_openshift_subdomain }}.{{ item.name }}
     --cpu=host --vcpus {{ ocp_vms_bootstrap_cpus }}
     --memory {{ item.ram }}
     {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
     --os-variant rhel8.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
     --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ item.name }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ item.size }}
-    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ item.size }}
+    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
     --boot hd,network,menu=on --noreboot
     {% if ocp_vms_console %}
     --console pty,target_type=virtio
@@ -290,15 +290,15 @@
 - name: Create OpenShift master virtual machines
   command: >
     virt-install
-    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_master_nodes[0].name }}{{ item }}
+    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_master_nodes[0].name }}{{ item }}
     --cpu=host --vcpus {{ ocp_vms_master_cpus }}
     --memory {{ ocp_vms_master_nodes[0].ram }}
     {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
     --os-variant rhel8.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
     --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_master_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_master_nodes[0].size }}
-    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_master_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_master_nodes[0].size }}
+    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
     --boot hd,network,menu=on --noreboot
     {% if ocp_vms_console %}
     --console pty,target_type=virtio
@@ -313,15 +313,15 @@
 - name: Create OpenShift infrastructure virtual machines
   command: >
     virt-install
-    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }}
+    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }}
     --cpu=host --vcpus {{ ocp_vms_infra_cpus }}
     --memory {{ ocp_vms_infra_nodes[0].ram }}
     {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
     --os-variant rhel8.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
     --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_infra_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_infra_nodes[0].size }}
-    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_infra_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_infra_nodes[0].size }}
+    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
     --boot hd,network,menu=on --noreboot
     {% if ocp_vms_console %}
     --console pty,target_type=virtio
@@ -337,15 +337,15 @@
 - name: Create OpenShift worker virtual machines
   command: >
     virt-install
-    --name {{ ocp_vms_openshift_release }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }}
+    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }}
     --cpu=host --vcpus {{ ocp_vms_worker_cpus }}
     --memory {{ ocp_vms_worker_nodes[0].ram }}
     {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
     --os-variant rhel8.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
     --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_release }}-{{ ocp_vms_worker_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_worker_nodes[0].size }}
-    --network network={{ ocp_vms_openshift_release }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_worker_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_worker_nodes[0].size }}
+    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
     --boot hd,network,menu=on --noreboot
     {% if ocp_vms_console %}
     --console pty,target_type=virtio
@@ -359,7 +359,7 @@
 
 - name: record bootstrap VM mac address
   shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ item.name }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ item.name }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
     echo "[bootstrap]" > /tmp/vm_mac_addrs.ini;
     echo "{{ item.name }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
   loop: "{{ ocp_vms_bootstrap_node }}"
@@ -375,7 +375,7 @@
 
 - name: record master VM mac address
   shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ ocp_vms_master_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_master_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
     echo "{{ ocp_vms_master_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
   with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
   tags:
@@ -391,7 +391,7 @@
 
 - name: record infra VM mac address
   shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
     echo "{{ ocp_vms_infra_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
   with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
   when: ocp_vms_infra_count > 0
@@ -407,7 +407,7 @@
 
 - name: record worker VM mac address
   shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_release }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_release }}-private | awk '{print $5}');
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
     echo "{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
   with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
   tags:
@@ -486,7 +486,7 @@
 - name: Save Ansible inventory to local inventory directory
   template:
     src: inventory.ini.j2
-    dest: "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_release }}_vms"
+    dest: "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_subdomain }}_vms"
     mode: 0660
     owner: "{{ ansible_local_user }}"
     group: "{{ ansible_local_group }}"
@@ -503,7 +503,7 @@
     group: "{{ ansible_local_group }}"
     force: True
   vars:
-     ocp_vms_ssh_pubkey: "{{ lookup('file', '{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_release }}_id_ecdsa.pub') }}"
+     ocp_vms_ssh_pubkey: "{{ lookup('file', '{{ ansible_local_home }}/.ssh/{{ ocp_vms_openshift_subdomain }}_id_ecdsa.pub') }}"
   tags:
     - template
     - install_config_intrmdt
