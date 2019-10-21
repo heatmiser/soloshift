@@ -32,8 +32,9 @@ or
 * `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
 
 * `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads
-* `ocp_vms_openshift_release`: ocp41 - name for top level DNS sub-domain
-* `ocp_vms_openshift_subdomain`: domain.com - base DNS subdomain
+* `ocp_vms_openshift_release`: 4.1 - OpenShift version to deploy; 4.1, 4.2, or pre-release
+* `ocp_vms_openshift_subdomain`: ocp41 - name for top level DNS sub-domain
+* `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
 * `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
 * `ocp_vms_net_cidr`: 192.168.8.0/24 - internal subnet for cluster to use
 * `ocp_vms_master_count`: 1
