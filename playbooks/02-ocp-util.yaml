@@ -33,7 +33,7 @@
         - rhel-7-server-rpms
         - rhel-7-server-extras-rpms
     register: registration_result
-    failed_when: result.rc == 0 or "This system is already registered" not in registration_result.stder
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
       - ansible_distribution == 'RedHat'
       - ocp_vms_util_node
