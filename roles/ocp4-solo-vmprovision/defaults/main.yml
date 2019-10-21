@@ -27,8 +27,9 @@ ocp_vms_hugepages: False
 ocp_vms_console: True
 ocp_vms_no_auto_vm_console: True
 ocp_vms_el_url: http://packages.oit.ncsu.edu/centos/7/os/x86_64
-ocp_vms_openshift_release: ocp4
-ocp_vms_openshift_subdomain: example.com
+ocp_vms_openshift_release: 4.2
+ocp_vms_openshift_subdomain: ocp4
+ocp_vms_openshift_rootdomain: example.com
 ocp_vms_openshift_pullsecret_file: pull-secret.txt
 # These dictionaries are primarily used for creating the QCOW2 files.
 ocp_vms_utility_node:
