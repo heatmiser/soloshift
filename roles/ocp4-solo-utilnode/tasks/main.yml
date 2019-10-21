@@ -37,7 +37,10 @@
       - NetworkManager
       - firewalld
       - podman
+      - wget
     state: present
+  tags:
+    - util_pkgs
 
 - name: Install httpd
   yum:
@@ -166,33 +169,97 @@
     - /var/lib/matchbox/install
   when: matchbox
 
+- name: noodle for rhcos installer initramfs file
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs"
+  register: rhcosinitramfs
+  tags:
+    - noodlin
+
+- name: Set rhcos installer initramfs file name as fact
+  set_fact:
+    rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
+  tags:
+    - noodlin
+
+- name: What is the rhcos installer initramfs file name?
+  debug:
+    var: rhcosinitramfsfile
+  tags:
+    - noodlin
+
+- name: noodle for rhcos installer kernel file
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel"
+  register: rhcoskernel
+  tags:
+    - noodlin
+
+- name: Set rhcos installer kernel file name as fact
+  set_fact:
+    rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
+  tags:
+    - noodlin
+
+- name: What is the rhcos installer kernel file name?
+  debug: 
+    var: rhcoskernelfile
+  tags:
+    - noodlin
+
+- name: noodle for rhcos metal bios file
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal-bios"
+  register: rhcosmetalbios
+  tags:
+    - noodlin
+
+- name: Set rhcos metal bios file name as fact
+  set_fact:
+    rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+  tags:
+    - noodlin
+
+- name: What is the rhcos metal bios file name?
+  debug: 
+    var: rhcosmetalbiosfile
+  tags:
+    - noodlin
+
 - name: check if rhcos installer initramfs, kernel, and metal bios files are present
   stat: 
     path: /var/lib/matchbox/assets/{{ item }}
-  with_items:
-    - rhcos-4.1.0-x86_64-installer-initramfs.img
-    - rhcos-4.1.0-x86_64-installer-kernel
-    - rhcos-4.1.0-x86_64-metal-bios.raw.gz
+  loop:
+    - "{{ rhcosinitramfsfile }}"
+    - "{{ rhcoskernelfile }}"
+    - "{{ rhcosmetalbiosfile }}"
+# Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
   register: rhcos_mb_assets
   tags:
     - rhcos_mb_asset_files
 
-- name: Register rhcos_mb_assets_changed variable
-  set_fact:
-    rrhcos_mb_assets_exists: rhcos_mb_assets.stat.exists
+# Left in code as a means for studies on how selectattr( ) can be used with both Jinja ( equalto( ) ) and Ansible ( match( ) and search( ) ) tests.
+# https://stackoverflow.com/questions/31895602/ansible-filter-a-list-by-its-attributes
+- name: Print rhcos_mb_assets dict
+  debug:
+    msg: "Key is {{ item.key}} and value is {{item.value}}"
+  with_dict: "{{ rhcos_mb_assets }}"
+  tags:
+    - rhcos_mb_asset_files
+
+- name: What items are in the loop?
+  debug:
+    msg: "{{ item }}"
+# selectattr('stat.exists', 'equalto', 'False') would not correctly select items, so went with a stat attribute that is undefined when not exists
+  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined') | map(attribute='item') | list }}"
+  when: matchbox
   tags:
     - rhcos_mb_asset_files
 
 - name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.1/latest/{{ item }}
+    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ item }}
     dest: /var/lib/matchbox/assets
     mode: '0440'
-  with_items:
-    - rhcos-4.1.0-x86_64-installer-initramfs.img
-    - rhcos-4.1.0-x86_64-installer-kernel
-    - rhcos-4.1.0-x86_64-metal-bios.raw.gz
-  when: matchbox and not rrhcos_mb_assets_exists
+  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+  when: matchbox
   tags:
     - rhcos_mb_asset_files
 
@@ -260,14 +327,14 @@
 
 - name: Get OCP4 installer Bios
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.1/4.1.0/rhcos-4.1.0-x86_64-metal-bios.raw.gz
+    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ rhcosmetalbiosfile }}
     dest: /var/www/html/install/bios.raw.gz
     mode: 0555
   when: not matchbox
 
 - name: Symlink bios.raw.gz when using matchbox
   file:
-    src: /var/lib/matchbox/assets/rhcos-4.1.0-x86_64-metal-bios.raw.gz
+    src: /var/lib/matchbox/assets/{{ rhcosmetalbiosfile }}
     dest: /var/lib/matchbox/install/bios.raw.gz
     owner: root
     group: root
@@ -330,7 +397,7 @@
 
 - name: Symlink kernel when using matchbox
   file:
-    src: /var/lib/matchbox/assets/rhcos-4.1.0-x86_64-installer-kernel
+    src: /var/lib/matchbox/assets/{{ rhcoskernelfile }}
     dest: /var/lib/tftpboot/rhcos/kernel
     owner: root
     group: root
@@ -342,7 +409,7 @@
 
 - name: Symlink initramfs.img when using matchbox
   file:
-    src: /var/lib/matchbox/assets/rhcos-4.1.0-x86_64-installer-initramfs.img
+    src: /var/lib/matchbox/assets/{{ rhcosinitramfsfile }}
     dest: /var/lib/tftpboot/rhcos/initramfs.img
     owner: root
     group: root
@@ -384,7 +451,7 @@
 
 - name: Get OCP4 installer initramfs
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.1/4.1.0/rhcos-4.1.0-x86_64-installer-initramfs.img
+    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ rhcosinitramfsfile }}
     dest: /var/lib/tftpboot/rhcos/initramfs.img
     mode: 0555
   when:
@@ -393,7 +460,7 @@
 
 - name: Get OCP4 installer kernel
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.1/4.1.0/rhcos-4.1.0-x86_64-installer-kernel
+    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ rhcoskernelfile }}
     dest: /var/lib/tftpboot/rhcos/kernel
     mode: 0555
   when:
@@ -524,29 +591,79 @@
     group: root
     mode: 0555
 
-- name: Dowloading OC clients 
-  get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.1.8/openshift-client-linux-4.1.8.tar.gz
-    dest: /usr/local/src/openshift-client-linux-4.1.8.tar.gz
-    remote_src: yes
+- name: noodle for OC client tarball
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux"
+  register: occlient
+  tags:
+    - noodlin
 
-- name: Dowloading OpenShift Installer
-  get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.1.8/openshift-install-linux-4.1.8.tar.gz
-    dest: /usr/local/src/openshift-install-linux-4.1.8.tar.gz
-    remote_src: yes
+- name: Set OC client tarball file name as fact
+  set_fact:
+    occlientfile: "{{ occlient.stdout | trim }}"
+  tags:
+    - noodlin
 
-- name: Unarchiving OC clients
+- name: What is the OC client tarball file name?
+  debug: 
+    var: occlientfile
+  tags:
+    - noodlin
+
+- name: noodle for OpenShift Installer tarball
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux"
+  register: ospinstaller
+  tags:
+    - noodlin
+
+- name: Set OpenShift Installer tarball file name as fact
+  set_fact:
+    ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
+  tags:
+    - noodlin
+
+- name: What is the OpenShift Installer tarball file name?
+  debug: 
+    var: ospinstallerfile
+  tags:
+    - noodlin
+
+- name: check if OC client tarball and/or OpenShift Installer tarball are present
+  stat: 
+    path: /usr/local/src/{{ item }}
+  loop:
+    - "{{ occlientfile }}"
+    - "{{ ospinstallerfile }}"
+  register: oc_client_assets
+  tags:
+    - oc_client_asset_files
+
+- name: Download OC client tarball and/or OpenShift Installer tarball
+  get_url:
+    url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/{{ item }}
+    dest: /usr/local/src
+    mode: '0440'
+  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+  when: ocp_vms_openshift_release != "pre-release"
+  tags:
+    - oc_client_asset_files
+
+- name: check again if OC client tarball and/or OpenShift Installer tarball are present
+  stat: 
+    path: /usr/local/src/{{ item }}
+  loop:
+    - "{{ occlientfile }}"
+    - "{{ ospinstallerfile }}"
+  register: oc_client_assets2
+  tags:
+    - oc_client_asset_files
+
+- name: Unarchiving tarballs
   unarchive:
-    src: /usr/local/src/openshift-client-linux-4.1.8.tar.gz
+    src: /usr/local/src/{{ item }}
     dest: /usr/local/bin
     remote_src: yes
-
-- name: Unarchiving OpenShift Installer
-  unarchive:
-    src: /usr/local/src/openshift-install-linux-4.1.8.tar.gz
-    dest: /usr/local/bin
-    remote_src: yes
+  loop: "{{ oc_client_assets2.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+  when: ocp_vms_openshift_release != "pre-release"
 
 - name: Removing files that are not needed
   file:
