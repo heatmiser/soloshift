@@ -3,9 +3,9 @@
 "name": "OCP 4 – Master",
 "ignition_id": "master.ign",
 "boot": {
-"kernel": "/assets/rhcos-4.1.0-x86_64-installer-kernel",
+"kernel": "/assets/{{ rhcoskernelfile }}",
 "initrd": [
-"/assets/rhcos-4.1.0-x86_64-installer-initramfs.img"
+"/assets/{{ rhcosinitramfsfile }}"
 ],
 "args": [
 "ip=dhcp",
@@ -14,7 +14,7 @@
 "console=ttyS0",
 "coreos.inst=yes",
 "coreos.inst.install_dev=sda",
-"coreos.inst.image_url=http://{{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}:8080/assets/rhcos-4.1.0-x86_64-metal-bios.raw.gz",
+"coreos.inst.image_url=http://{{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}:8080/assets/{{ rhcosmetalbiosfile }}",
 "coreos.inst.ignition_url=http://{{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}:8080/ignition?mac=${mac:hexhyp}"
 ]
 }

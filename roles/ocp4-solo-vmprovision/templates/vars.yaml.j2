@@ -7,8 +7,8 @@ util:
 staticips: false
 matchbox: true
 dns:
-  domain: "{{ ocp_vms_openshift_subdomain }}"
-  clusterid: "{{ ocp_vms_openshift_release }}"
+  domain: "{{ ocp_vms_openshift_rootdomain }}"
+  clusterid: "{{ ocp_vms_openshift_subdomain }}"
   forwarder1: "8.8.8.8"
   forwarder2: "8.8.4.4"
 dhcp:
