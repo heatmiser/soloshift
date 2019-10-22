@@ -4,7 +4,22 @@ Ansible automation for deploying a local "all in one" OpenShift 4 cluster
 Requirements
 ------------
 
-A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora.
+A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 16GB RAM. If you're using RHEL for the base hypervisor OS, then you'll need to register and configure first.  As root, or via sudo:
+
+`# subscription-manager register --username="your_user_name" --password="your_user_password"`
+Note: Leave out the --password switch if you want to enter your password interactively and not record password in shell history.
+
+...or"
+
+`# subscription-manager register --activationkey="your_key_name" --org="your_org_id#"`
+
+...then:
+
+`# subscription-manager repos --disable="*"`
+`# subscription-manager repos --enable="rhel-7-server-rpms"`
+`# subscription-manager repos --enable="rhel-7-server-extras-rpms"`
+`# subscription-manager repos --enable="rhel-7-server-ansible-2.8-rpms"`
+`# yum install git ansible`
 
 `# git clone https://github.com/heatmiser/soloshift.git`
 
@@ -45,6 +60,10 @@ or
 Deploy All-in-One OCP4
 ------------
 
+Place pull-secret.txt in the root of the soloshift directory.
+
+Download your VM image of choice to /var/lib/libvirt/images, for example, the RHEL7 KVM qcow2 guest image. Then, update `ocp_vms_base_image` with the name of the image.  If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
+
 `# ansible-galaxy install -p ./roles -r requirements.yaml`
 
 `# ansible-playbook playbooks/00-ocp-hyper.yaml`
@@ -68,6 +87,8 @@ Next, patch the image registry to use local storage:
 `--type merge \`
 
 `--patch '{"spec":{"storage":{"emptyDir":{}}}}'`
+
+If you receive a message like "cluster does not exist" wait a bit and rerun.
 
 And finally, watch for the "Install complete!" message, which will be followed by auth creds to log into the console...
 
