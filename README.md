@@ -74,7 +74,9 @@ Download your VM image of choice to /var/lib/libvirt/images, for example, the RH
 
 `# ansible-playbook playbooks/03-ocp-init.yaml`
 
-Either access the util vm console via virt-viewer or ssh into the util vm as root and execute:
+Either access the util vm console via virt-viewer or ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your users .ssh directory prefixed with whatever was set `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in as root.
+
+Next, execute:
 
 `# openshift-install --dir=/root/ocp4upi wait-for bootstrap-complete --log-level debug`
 
@@ -94,6 +96,18 @@ And finally, watch for the "Install complete!" message, which will be followed b
 
 `openshift-install --dir=/root/ocp4upi wait-for install-complete --log-level debug`
 
-When ready to tear everything down, execute:
+You can also view the status of the bootstrap process as nodes come and go by checking out the haproxy status page at http://192.168.8.8:9000
+
+Once the installation is complete, edit your hypervisor's /etc/hosts file to include some of the endpoints utilized by OpenShift.  For example if using all defaults, your /etc/hosts entries would look like this:
+
+192.168.8.8 console-openshift-console.apps.ocp42.local.dc
+192.168.8.8 oauth-openshift.apps.ocp42.local.dc
+192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp42.local.dc
+192.168.8.8 grafana-openshift-monitoring.apps.ocp42.local.dc
+
+You'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works...
+
+
+When you're ready to tear everything down, execute:
 
 `ansible-playbook playbooks/99-ocp-wipe.yaml`
