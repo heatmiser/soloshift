@@ -9,16 +9,20 @@ A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 16GB 
 `# subscription-manager register --username="your_user_name" --password="your_user_password"`
 Note: Leave out the --password switch if you want to enter your password interactively and not record password in shell history.
 
-...or"
+...or:
 
 `# subscription-manager register --activationkey="your_key_name" --org="your_org_id#"`
 
 ...then:
 
 `# subscription-manager repos --disable="*"`
+
 `# subscription-manager repos --enable="rhel-7-server-rpms"`
+
 `# subscription-manager repos --enable="rhel-7-server-extras-rpms"`
+
 `# subscription-manager repos --enable="rhel-7-server-ansible-2.8-rpms"`
+
 `# yum install git ansible`
 
 `# git clone https://github.com/heatmiser/soloshift.git`
@@ -74,13 +78,13 @@ Download your VM image of choice to /var/lib/libvirt/images, for example, the RH
 
 `# ansible-playbook playbooks/03-ocp-init.yaml`
 
-Either access the util vm console via virt-viewer or ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your users .ssh directory prefixed with whatever was set `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in as root.
+Either access the util vm console via virt-viewer or ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your user's .ssh directory prefixed with whatever was set for `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in to the util node as root.
 
-Next, execute:
+After logging in to the util node as root, execute:
 
 `# openshift-install --dir=/root/ocp4upi wait-for bootstrap-complete --log-level debug`
 
-Eventually, you'll see a log message saying that it's ok to shutdown the bootstrap machine, then do that.
+Eventually, you'll see a log message saying that it's ok to shutdown the bootstrap machine. Back on the hypervisor system, shutdown the bootstrap node, either via the Virtual Machine Manager or `virsh` command line tool.
 
 Next, patch the image registry to use local storage:
 
