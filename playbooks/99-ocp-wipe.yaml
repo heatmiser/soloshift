@@ -2,6 +2,40 @@
 - hosts: hypervisor
   become: true
   tasks:
+  - name: start util vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ util.name }}"
+      state: running
+    when:
+      - ocp_vms_util_node
+
+- hosts: util
+  become: true
+  gather_facts: no
+  tasks:
+  - name: Wait for connection...
+    wait_for_connection:
+      delay: 10
+      timeout: 120
+    when:
+      - ocp_vms_util_node
+
+- hosts: util
+  become: true
+  tasks:
+  - name: "Deregister util node prior to deletion"
+    import_role:
+      name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_state: absent
+    register: deregister_result
+    when:
+      - ansible_distribution == 'RedHat'
+      - ocp_vms_util_node
+
+- hosts: hypervisor
+  become: true
+  tasks:
   - name: ansible-playbook pwd
     run_once: True
     set_fact:
@@ -196,7 +230,7 @@
 
   - name: Remove libvirt network
     virt_net:
-      name: "{{ ocp_vms_openshift_release }}-private"
+      name: "{{ ocp_vms_openshift_subdomain }}-private"
       state: "{{ item }}"
     with_items:
       - inactive
@@ -207,7 +241,7 @@
       path: "{{ item }}"
       state: absent
     with_items:
-    - "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_release }}_vms"
+    - "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_subdomain }}_vms"
     - "{{ playbook_dir }}/install-config.yaml.intermediate.j2"
     - "{{ ansible_playbook_pwd }}/inventory/group_vars/all/vars.yaml"
     - "{{ ansible_playbook_pwd }}/ocp4upi"
