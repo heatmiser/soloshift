@@ -24,52 +24,108 @@
   tags:
     - local_user
 
-- name: Install base packages
-  yum:
-    name:
-      - bind
-      - bind-utils
-      - haproxy
-      - git
-      - vim
-      - bash-completion
-      - libselinux-python
-      - NetworkManager
-      - firewalld
-      - podman
-      - wget
-    state: present
-  tags:
-    - util_pkgs
+- name: Package installation on RHEL
+  block:
+    - name: Install base packages
+      yum:
+        name:
+          - bind
+          - bind-utils
+          - haproxy
+          - git
+          - vim
+          - bash-completion
+          - libselinux-python
+          - NetworkManager
+          - firewalld
+          - podman
+          - wget
+        state: present
+      tags:
+        - util_pkgs
 
-- name: Install httpd
-  yum:
-    name:
-      - httpd
-    state: present
-  when: not matchbox
+    - name: Install httpd
+      yum:
+        name:
+          - httpd
+        state: present
+      when: not matchbox
 
-- name: Install packages for DHCP/PXE install
-  yum:
-    name:
-      - dhcp
-      - syslinux
-      - tftp-server
-    state: present
-  when: not staticips
+    - name: Install packages for DHCP/PXE install
+      yum:
+        name:
+          - dhcp
+          - syslinux
+          - tftp-server
+        state: present
+      when: not staticips
 
-- name: Install package for iPXE boot images
-  yum:
-    name:
-      - ipxe-bootimgs
-    state: present
-  when: matchbox
+    - name: Install package for iPXE boot images
+      yum:
+        name:
+          - ipxe-bootimgs
+        state: present
+      when: matchbox
 
-- name: Update all packages
-  yum:
-    name: '*'
-    state: latest
-  register: yumup_code
+    - name: Update all packages
+      yum:
+        name: '*'
+        state: latest
+      register: yumup_code
+  when:
+    - ansible_distribution == 'RedHat'
+
+- name: Package installation on Fedora
+  block:
+    - name: Install base packages
+      dnf:
+        name:
+          - bind
+          - bind-utils
+          - haproxy
+          - git
+          - vim
+          - bash-completion
+          - libselinux-python
+          - NetworkManager
+          - firewalld
+          - python3-firewall
+          - podman
+          - wget
+        state: present
+      tags:
+        - util_pkgs
+
+    - name: Install httpd
+      dnf:
+        name:
+          - httpd
+        state: present
+      when: not matchbox
+
+    - name: Install packages for DHCP/PXE install
+      dnf:
+        name:
+          - dhcp
+          - syslinux
+          - tftp-server
+        state: present
+      when: not staticips
+
+    - name: Install package for iPXE boot images
+      dnf:
+        name:
+          - ipxe-bootimgs
+        state: present
+      when: matchbox
+
+    - name: Update all packages
+      dnf:
+        name: '*'
+        state: latest
+      register: dnfup_code
+  when:
+    - ansible_distribution == 'Fedora'
 
 - name: Write out dhcp file
   template:
@@ -127,9 +183,18 @@
     - /var/www/html/ignition
   when: not matchbox
 
-- name: Get matchbox distribution and extract to /tmp
+- name: Get matchbox distribution
+  get_url:
+    url: https://github.com/poseidon/matchbox/releases/download/v0.8.0/matchbox-v0.8.0-linux-amd64.tar.gz
+    dest: /tmp
+    mode: '0440'
+  register: getmatchresult
+  until: getmatchresult is succeeded
+  when: matchbox
+
+- name: Extract matchbox distribution to /tmp
   unarchive:
-    src: https://github.com/poseidon/matchbox/releases/download/v0.8.0/matchbox-v0.8.0-linux-amd64.tar.gz
+    src: /tmp/matchbox-v0.8.0-linux-amd64.tar.gz
     dest: /tmp
     extra_opts:
     - --strip=1
