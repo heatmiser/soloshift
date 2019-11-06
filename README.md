@@ -3,8 +3,7 @@ Ansible automation for deploying a local "all in one" OpenShift 4 cluster
 
 # Overview
 
-While single system installation of OpenShift 4 is also made possible via Red Hat CodeReady Containers
-https://developers.redhat.com/blog/2019/09/05/red-hat-openshift-4-on-your-laptop-introducing-red-hat-codeready-containers/, some users desire a more complete single system installation of OpenShift 4 that more closely resembles a full, multi-system OpenShift 4 cluster deployment, whether that be for laptop installation or single server lab deployments.
+While single system installation of OpenShift 4 is also made possible via [Red Hat CodeReady Containers](https://developers.redhat.com/blog/2019/09/05/red-hat-openshift-4-on-your-laptop-introducing-red-hat-codeready-containers/), some users desire a more complete single system installation of OpenShift 4 that more closely resembles a full, multi-system OpenShift 4 cluster deployment, whether that be for laptop installation or single server lab deployments.
 
 # Cluster components
 
