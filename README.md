@@ -4,12 +4,20 @@ Ansible automation for deploying a local "all in one" OpenShift 4 cluster
 Requirements
 ------------
 
-A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 16GB RAM. If you're using RHEL for the base hypervisor OS, then you'll need to register and configure first.  As root, or via sudo:
+A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 16GB RAM.
+
+For CentOS hypervisors, skip to 2).
+
+For Fedora hypervisors, skip to 3).
+
+1) If you're using RHEL for the base hypervisor OS, then you'll need to register and configure first. As root, or via sudo:
+
+- Red Hat username and password
 
 `(hypervisor)# subscription-manager register --username="your_user_name" --password="your_user_password"`
 Note: Leave out the --password switch if you want to enter your password interactively and not record password in shell history.
 
-...or:
+...or Red Hat organization ID and activation key:
 
 `(hypervisor)# subscription-manager register --activationkey="your_key_name" --org="your_org_id#"`
 
@@ -23,7 +31,19 @@ Note: Leave out the --password switch if you want to enter your password interac
 
 `(hypervisor)# subscription-manager repos --enable="rhel-7-server-ansible-2.8-rpms"`
 
-`(hypervisor)# yum install git ansible`
+2) CentOS hypervisors only
+
+`(hypervisor)# yum -y install epel-release`
+
+3a) Fedora hypervisors only 
+
+`(hypervisor)# dnf -y install git ansible`
+
+3b) CentOS/RHEL hypervisors only
+
+`(hypervisor)# yum -y install git ansible`
+
+4) Continue...
 
 `(hypervisor)# git clone https://github.com/heatmiser/soloshift.git`
 
@@ -32,8 +52,11 @@ Note: Leave out the --password switch if you want to enter your password interac
 Copy `inventory/group_vars/all/default_vars.yaml`
 to `inventory/group_vars/all/my_vars.yaml`
 
+Next, edit `inventory/group_vars/all/my_vars.yaml`
 
-If utilizing RHEL for the base hypervisor system, edit `inventory/group_vars/all/my_vars.yaml` and choose either pair of:
+SoloShift employs a utility VM to run the OpenShift User Provided Infrastructure installation, as well as to provide base infrastructure services, such as dhcp, tftp, DNS, matchbox, and haproxy.
+
+If utilizing RHEL for the utility VM, choose either pair of:
 
 - organization ID and activation key
   
@@ -45,7 +68,6 @@ or
 
 * `redhat_subscription_org_id`: Subscription organization ID. If using an activation key, this is required. If comprised of all numbers, surround in double-quotes.
 * `redhat_subscription_activationkey`: Activation key to use for host registration.
-
 
 * `redhat_subscription_username`: If not using an activation key, specify Red Hat username. 
 * `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
@@ -67,6 +89,9 @@ Deploy All-in-One OCP4
 Place pull-secret.txt in the root of the soloshift directory.
 
 Download your VM image of choice to /var/lib/libvirt/images, for example, the RHEL7 KVM qcow2 guest image. Then, update `ocp_vms_base_image` with the name of the image.  If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
+
+If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the various VM nodes, edit
+`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding.  The default values are as low as you should go for successful installations. A minumum base hypervisor RAM of 16GB (laptop installations was one of the original goals) is required.
 
 `(hypervisor)# ansible-galaxy install -p ./roles -r requirements.yaml`
 
