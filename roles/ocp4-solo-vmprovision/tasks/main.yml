@@ -282,6 +282,7 @@
     {% endif %}
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
+    {% endif %}
     {% if ocp_vms_storage_overcommit %}
     --check disk_size=off
     {% endif %}
@@ -307,6 +308,7 @@
     {% endif %}
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
+    {% endif %}
     {% if ocp_vms_storage_overcommit %}
     --check disk_size=off
     {% endif %}
@@ -332,6 +334,7 @@
     {% endif %}
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
+    {% endif %}
     {% if ocp_vms_storage_overcommit %}
     --check disk_size=off
     {% endif %}
@@ -358,6 +361,7 @@
     {% endif %}
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
+    {% endif %}
     {% if ocp_vms_storage_overcommit %}
     --check disk_size=off
     {% endif %}
