@@ -50,7 +50,7 @@ ocp_vms_master_nodes:
 ocp_vms_infra_nodes:
   - name: infra
     size: 120
-    ram: 4996
+    ram: 4096
 ocp_vms_worker_nodes:
   - name: worker
     size: 120
