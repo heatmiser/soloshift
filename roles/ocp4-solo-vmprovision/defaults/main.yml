@@ -24,6 +24,7 @@ ocp_vms_worker_count: 2
 ocp_vms_worker_cpus: 4
 ocp_vms_worker_memory: 4096
 ocp_vms_hugepages: False
+ocp_vms_storage_overcommit: False
 ocp_vms_console: True
 ocp_vms_no_auto_vm_console: True
 ocp_vms_el_url: http://packages.oit.ncsu.edu/centos/7/os/x86_64
