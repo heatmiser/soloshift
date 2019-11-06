@@ -2,7 +2,7 @@
 # Setup OCP4 Solo Lab Hypervisor Node
 
 - name: Install base packages on Fedora
-  yum:
+  dnf:
     name:
       - vim
       - bash-completion
@@ -19,7 +19,7 @@
   when:
       - ansible_distribution == 'Fedora'
 
-- name: Install base packages on RHEL
+- name: Install base packages on CentOS/RHEL
   yum:
     name:
       - vim
@@ -30,10 +30,12 @@
       - "@virtualization-platform"
       - "@virtualization-tools"
       - libguestfs-tools
+      - libguestfs-xfs
+      - python-lxml
       - python-netaddr
     state: present
   when:
-      - ansible_distribution == 'RedHat'
+      - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
 
 - name: "Starting {{ item }} service"
   service:
