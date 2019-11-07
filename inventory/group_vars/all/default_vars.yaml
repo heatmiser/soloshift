@@ -3,6 +3,7 @@ redhat_subscription_username:
 redhat_subscription_password:
 redhat_subscription_org_id:
 redhat_subscription_activationkey:
+redhat_subscription_pool_regex: ^$
 ocp_vms_preprovisioned: True
 ocp_vms_base_image: rhel-server-7.7-x86_64-kvm.qcow2
 #ocp_vms_base_image: CentOS-7-x86_64-GenericCloud.qcow2
