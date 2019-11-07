@@ -85,6 +85,7 @@ or
 
 * `redhat_subscription_username`: If not using an activation key, specify Red Hat username. 
 * `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
+* `redhat_subscription_pool_regex`: If utilizing username/password, supply a regex to match on the desired pool. For example, to match on a subscription pool named Red Hat Enterprise Server, use "^Red Hat Enterprise Server$"
 
 * `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads
 * `ocp_vms_openshift_release`: 4.1 - OpenShift version to deploy; 4.1, 4.2, or pre-release
