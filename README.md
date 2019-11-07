@@ -139,7 +139,7 @@ Next, patch the image registry to use local storage:
 
 `--patch '{"spec":{"storage":{"emptyDir":{}}}}'`
 
-If you receive a message like "cluster does not exist", wait a bit and rerun.
+If you receive a message like "cluster does not exist" or "cluster not found", wait a bit and rerun.
 
 And finally, watch for the "Install complete!" message, which will be followed by auth creds to log into the console...
 
