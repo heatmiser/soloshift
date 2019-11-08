@@ -134,6 +134,8 @@ Eventually, you'll see a log message saying that it's ok to shutdown the bootstr
 
 Next, patch the image registry to use local storage:
 
+> **NOTE**: Adding persistent storage options (NFS, iSCSI, etc) to soloshift is a work in progress 
+
 `(util)# oc patch configs.imageregistry.operator.openshift.io cluster \`
 
 `--type merge \`
