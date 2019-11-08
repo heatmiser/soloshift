@@ -29,6 +29,7 @@
       - "@virtualization-client"
       - "@virtualization-platform"
       - "@virtualization-tools"
+      - iptables-services
       - libguestfs-tools
       - libguestfs-xfs
       - python-lxml
