@@ -24,6 +24,7 @@ ocp_vms_worker_count: 2
 ocp_vms_worker_cpus: 4
 ocp_vms_worker_memory: 4096
 ocp_vms_hugepages: False
+ocp_vms_storage_overcommit: False
 ocp_vms_console: True
 ocp_vms_no_auto_vm_console: True
 ocp_vms_el_url: http://packages.oit.ncsu.edu/centos/7/os/x86_64
@@ -50,7 +51,7 @@ ocp_vms_master_nodes:
 ocp_vms_infra_nodes:
   - name: infra
     size: 120
-    ram: 4996
+    ram: 4096
 ocp_vms_worker_nodes:
   - name: worker
     size: 120

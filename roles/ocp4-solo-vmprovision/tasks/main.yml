@@ -283,6 +283,9 @@
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
     {% endif %}
+    {% if ocp_vms_storage_overcommit %}
+    --check disk_size=off
+    {% endif %}
   loop: "{{ ocp_vms_bootstrap_node }}"
   tags:
     - ocp_vms_cluster
@@ -305,6 +308,9 @@
     {% endif %}
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
+    {% endif %}
+    {% if ocp_vms_storage_overcommit %}
+    --check disk_size=off
     {% endif %}
   with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
   tags:
@@ -329,6 +335,9 @@
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
     {% endif %}
+    {% if ocp_vms_storage_overcommit %}
+    --check disk_size=off
+    {% endif %}
   with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
   when: ocp_vms_infra_count > 0
   tags:
@@ -352,6 +361,9 @@
     {% endif %}
     {% if ocp_vms_no_auto_vm_console %}
     --noautoconsole
+    {% endif %}
+    {% if ocp_vms_storage_overcommit %}
+    --check disk_size=off
     {% endif %}
   with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
   tags:
