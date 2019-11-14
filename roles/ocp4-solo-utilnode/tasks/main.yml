@@ -135,7 +135,7 @@
 
 - name: Write out named conf file
   template:
-    src: named.conf.j2
+    src: bind/named.conf.j2
     dest: /etc/named.conf
 
 - name: Set zone serial number
@@ -159,14 +159,14 @@
 
 - name: Write out "{{ dns.domain }}" zone file
   template:
-    src: zonefile.j2
+    src: bind/zonefile.j2
     dest: /var/named/primary/master.{{ dns.domain }}.db
     owner: named
     group: named
 
 - name: Write out reverse zone file
   template:
-    src: reverse.j2
+    src: bind/reverse.j2
     dest: /var/named/primary/reverse.{{ dns.domain }}.db
     owner: named
     group: named
@@ -575,7 +575,7 @@
 
 - name: Set the local resolv.conf file
   template:
-    src: resolv.conf.j2
+    src: bind/resolv.conf.j2
     dest: /etc/resolv.conf
 
 - name: Get network interface name
