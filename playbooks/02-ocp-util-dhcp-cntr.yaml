@@ -1,0 +1,25 @@
+---
+- hosts: localhost
+  connection: local
+  become: true
+  # gather_facts: false
+  tasks:
+  - name: "Build and configure utility dhcp container"
+    import_role:
+      name: ocp4-solo-util-dhcp-cntr
+    vars:
+      image: fedora:30
+      container_name: build_container
+      image_name: dhcp-cntr
+      container_engine: buildah  # or docker
+    when:
+      - ansible_distribution == 'RedHat' or ansible_distribution == 'Fedora'
+
+  - name: Print Ansible Distribution debug information 
+    vars: 
+      msg: |
+        Ansible Distribution: {{ ansible_distribution }}
+        Ansible Dist version: {{ ansible_distribution_version }}
+    debug: 
+      msg: "{{ msg.split('\n') }}"       
+    tags: debug_info

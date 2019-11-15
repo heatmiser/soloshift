@@ -1,0 +1,78 @@
+---
+# build and configure dhcp server container
+- name: Ensure group "dhcpd" exists
+  group:
+    name: dhcpd
+    gid: 177
+    state: present
+
+- name: Ensure "dhcpd" user exists
+  user: name={{ item.name }} group={{ item.group }} comment={{ item.comment }} home={{ item.home }} uid={{ item.uid }} state=present shell={{ item.shell }}
+  with_items:
+    - { name: 'dhcpd', group: 'dhcpd', comment: 'DHCP server', home: '/', uid: 177, shell: '/sbin/nologin' }
+
+- name: dhcpd container config and leases dirs
+  file:
+    path: /srv/cntr_mounts/dhcpd/{{ item }}
+    state: directory
+    owner: dhcpd
+    group: dhcpd
+    mode: 0755
+  with_items:
+    - leases
+    - configs
+
+- name: Ensure leases db file is present on host system
+  file:
+    path: "/srv/cntr_mounts/dhcpd/leases/dhcpd.leases"
+    state: touch
+    mode: u=rw,g=r,o=r
+    owner: dhcpd
+    group: dhcpd
+
+- name: Write out dhcp config file
+  template:
+    src: dhcp/dhcpd.conf.j2
+    dest: /srv/cntr_mounts/dhcpd/configs/dhcpd.conf
+
+- name: Prep base container image
+  import_role:
+    name: v1-cntr-img-build-prep
+
+- name: Add the newly created container to the inventory
+  add_host:
+    hostname: '{{ container_name }}'
+    ansible_connection: '{{ container_engine }}'
+    ansible_python_interpreter: /usr/bin/python3  # fedora container doesn't ship python2
+    ansible_become: true
+    become_user: root
+
+- name: Run the role in the container
+  delegate_to: '{{ container_name }}'
+  import_role:
+    name: util-dhcp-cntr
+
+- block:
+  - name: Change default command of the container image
+    command: 'buildah config --cmd "/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user dhcpd -group dhcpd --no-pid" {{ container_name }}'
+  - name: Check if image already exists
+    command: podman inspect localhost/{{ image_name }}:latest
+    register: inspectout
+    ignore_errors: true
+  - name: Remove existing image
+    command: podman rmi localhost/{{ image_name }}:latest
+    when: '"error getting image" not in inspectout.stderr'
+  - name: Commit the container and make it an image
+    command: 'buildah commit --rm {{ container_name }} {{ image_name }}:latest'
+  when: container_engine == 'buildah'
+
+- block:
+  - name: Commit the container and make it an image
+    command: docker commit \
+      -c 'CMD ["/usr/sbin/dhcpd", "-f", "-cf", "/etc/dhcp/dhcpd.conf", "-user", "dhcpd", "-group", "dhcpd", "--no-pid"]' \
+      {{ container_name }} {{ image_name }}
+  - name: Remove the build container
+    docker_container:
+      name: '{{ container_name }}'
+      state: absent
+  when: container_engine == 'docker'
