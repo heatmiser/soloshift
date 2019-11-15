@@ -102,6 +102,8 @@ By default, SoloShift deploys VMs utilizing sparse backing files.  When creating
 
 * `ocp_vms_storage_overcommit: True`
 
+> **NOTE**: A basic installation utilizing soloshift (with default values) to deploy an OpenShift 4 cluster comprised of 1 master, 1 infrastructure, and 1 worker, with one utility node will require just under 40GB of space to complete the installation. Additional space will be required over time as the cluster is used.
+
 > **NOTE**: Storage overcommit can potentially lead to completely filling the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`. Be sure to keep this in mind and monitor overall volume capacity
 
 Deploy All-in-One OCP4
