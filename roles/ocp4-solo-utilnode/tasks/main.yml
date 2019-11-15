@@ -129,7 +129,7 @@
 
 - name: Write out dhcp file
   template:
-    src: dhcpd.conf.j2
+    src: dhcp/dhcpd.conf.j2
     dest: /etc/dhcp/dhcpd.conf
   when: not staticips
 

@@ -1,0 +1,14 @@
+# role to install dhcp and configure for containerized operation
+- name: Install dhcp
+  dnf:
+    name:
+      - dhcp-server
+    state: installed
+
+- name: Clean dnf metadata
+  command: dnf clean all
+
+- name: Remove conf file in container
+  file:
+    path: /etc/dhcp/dhcpd.conf
+    state: absent
