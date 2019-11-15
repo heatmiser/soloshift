@@ -80,6 +80,7 @@
     - name: Install base packages
       dnf:
         name:
+          - ansible
           - bind
           - bind-utils
           - haproxy
@@ -825,6 +826,22 @@
     group: root
     mode: 0660
     remote_src: yes
+
+- name: Copy kubelet bootstrap certs yaml over
+  template:
+    src: kubelet-bootstrap-cred-manager-ds.yaml
+    dest: "{{ ansible_user_dir }}/kubelet-bootstrap-cred-manager-ds.yaml"
+    owner: root
+    group: root
+    mode: 0555
+
+- name: Copy CSR approval Ansible playbook over
+  template:
+    src: ocp-approve-csr.yaml
+    dest: "{{ ansible_user_dir }}/ocp-approve-csr.yaml"
+    owner: root
+    group: root
+    mode: 0555
 
 - name: restart haproxy service
   service:

@@ -159,10 +159,25 @@ Once the installation is complete, edit your hypervisor's /etc/hosts file to inc
 	192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp42.local.dc
 	192.168.8.8 grafana-openshift-monitoring.apps.ocp42.local.dc
 
-In addition, you'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works. See below for additional instructions for utilizing xip.io to enable route name resolution without additional hosts file entries.
+In addition, you'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works. See below for additional instructions for utilizing [xip.io](http://xip.io/) to enable route name resolution without additional hosts file entries.
 
+If you plan on shutting down your OpenShift 4 cluster from time to time (laptop, cloud deployment, educational/lab), we'll need to create a DaemonSet that pulls down the same service account token bootstrap credential used on all the non-master nodes in the cluster and then delete a couple of key, related secrets. This will trigger the Cluster Operators to re-create the CSR signer secrets used to sign the kubelet client certificate CSRs when the cluster starts back up. [Follow this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) for a detailed background explanation as to why we need to do this.
 
-When you're ready to tear everything down, execute:
+Execute the following steps, again, while logged in to the util node as root:
+
+`(util)# oc apply -f $HOME/kubelet-bootstrap-cred-manager-ds.yaml`
+
+`(util)# oc delete secrets/csr-signer-signer secrets/csr-signer -n openshift-kube-controller-manager-operator`
+
+This will trigger the Cluster Operators to re-create the CSR signer secrets. You can watch progress as various operators switch from Progressing=False to Progressing=True and back to Progressing=False:
+
+`(util)# watch oc get clusteroperators`
+
+Once all Cluster Operators show Available=True, Progressing=False and Degraded=False the cluster can be safely shutdown.
+
+If you did not re-create the CSR signer secrets used to sign the kubelet client certificate CSRs and the cluster missed the initial 24 hour certicate rotation some nodes in the cluster may be in the NotReady state. Follow the instructions at the end of [this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) to rectify.  An Ansible playbook `ocp-approve-csr.yaml` has been included in the root user's home dir that can be run as part of the rectification process.
+
+Enjoy your OpenShift 4 cluster environment!  When you're ready to tear everything down, execute:
 
 `(hypervisor)# cd soloshift`
 
