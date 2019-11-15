@@ -1,0 +1,93 @@
+---
+# build and configure bind container
+- name: Ensure group "named" exists
+  group:
+    name: named
+    gid: 25
+    state: present
+
+- name: Ensure "named" user exists
+  user: name={{ item.name }} group={{ item.group }} comment={{ item.comment }} home={{ item.home }} uid={{ item.uid }} state=present shell={{ item.shell }}
+  with_items:
+    - { name: 'named', group: 'named', comment: 'Named', home: '/var/named', uid: 25, shell: '/sbin/nologin' }
+
+- name: named container config and log dirs
+  file:
+    path: /srv/cntr_mounts/bind/{{ item }}
+    state: directory
+    mode: 0700
+  with_items:
+    - logs
+    - configs
+
+- name: Set zone serial number
+  command: "date +%Y%m%d00"
+  register: dymanicserialnumber
+
+- name: Setting serial number as a fact
+  set_fact:
+    serialnumber: "{{ dymanicserialnumber.stdout }}"
+
+- name: Write out "{{ dns.domain }}" zone file
+  template:
+    src: bind/zonefile.j2
+    dest: /srv/cntr_mounts/bind/configs/master.{{ dns.domain }}.db
+    owner: named
+    group: named
+
+- name: Write out reverse zone file
+  template:
+    src: bind/reverse.j2
+    dest: /srv/cntr_mounts/bind/configs/reverse.{{ dns.domain }}.db
+    owner: named
+    group: named
+
+- name: Prep base container image
+  import_role:
+    name: v1-cntr-img-build-prep
+
+- name: Add the newly created container to the inventory
+  add_host:
+    hostname: '{{ container_name }}'
+    ansible_connection: '{{ container_engine }}'
+    ansible_python_interpreter: /usr/bin/python3  # fedora container doesn't ship python2
+    ansible_become: true
+    become_user: root
+
+- name: Run the role in the container
+  delegate_to: '{{ container_name }}'
+  import_role:
+    name: util-bind-cntr
+
+- name: Write out named conf file
+  delegate_to: '{{ container_name }}'
+  template:
+    src: bind/named.conf.j2
+    dest: /etc/named.conf
+
+- block:
+  - name: Change default command of the container image
+    command: 'buildah config --cmd "/usr/sbin/named -u named -f" {{ container_name }}'
+  - name: Expose port 53
+    command: 'buildah config --port 53/udp --port 53/tcp {{ container_name }}'
+  - name: Check if image already exists
+    command: podman inspect localhost/{{ image_name }}:latest
+    register: inspectout
+    ignore_errors: true
+  - name: Remove existing image
+    command: podman rmi localhost/{{ image_name }}:latest
+    when: '"error getting image" not in inspectout.stderr'
+  - name: Commit the container and make it an image
+    command: 'buildah commit --rm {{ container_name }} {{ image_name }}:latest'
+  when: container_engine == 'buildah'
+
+- block:
+  - name: Commit the container and make it an image
+    command: docker commit \
+      -c 'CMD ["/usr/sbin/named", "-u", "named", "-f" ]' \
+      {{ container_name }} {{ image_name }}
+  - name: Remove the build container
+    docker_container:
+      name: '{{ container_name }}'
+      state: absent
+  when: container_engine == 'docker'

@@ -1,0 +1,45 @@
+# role to prep base container image for app install/config
+- name: Register presence of old build container
+  shell: >
+    buildah containers | grep {{ container_name }} | awk '{print $NF}'
+  become: true
+  register: buildahcmd1
+  when: container_engine == 'buildah'
+  tags:
+    - buildcntrprez
+
+- name: Set build container name as fact
+  set_fact:
+    buildcntrname: "{{ buildahcmd1.stdout | trim }}"
+  tags:
+    - buildcntrprez
+
+- name: Print buildcntrname variable
+  debug: 
+    var: buildcntrname
+  tags:
+    - buildcntrprez
+
+- name: Remove old build container if present
+  shell: >
+    buildah rm {{ container_name }}
+  become: true
+  ignore_errors: true
+  tags:
+    - buildcntrprez
+
+- name: Obtain base image and create a build container from it
+  command: 'buildah from --name {{ container_name }} docker://{{ image }}'
+  become: true
+  when: container_engine == 'buildah'
+
+- block:
+  - name: Make the base image available locally
+    docker_image:
+      name: '{{ image }}'
+  - name: Create the container
+    docker_container:
+      image: '{{ image }}'
+      name: '{{ container_name }}'
+      command: sleep infinity
+  when: container_engine == 'docker'

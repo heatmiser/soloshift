@@ -1,0 +1,30 @@
+# role to install bind and configure for containerized operation
+- name: Install bind
+  dnf:
+    name:
+      - bind
+      - bind-utils
+    state: installed
+
+- name: Clean dnf metadata
+  command: dnf clean all
+
+- name: Gen rndc key
+  command: rndc-confgen -a -c /etc/rndc.key
+
+- name: Change ownership, group to named.named
+  file:
+    path: /etc/rndc.key
+    owner: named
+    group: named
+
+- name: Ensure named primary zone and logging directories are present
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: named
+    group: named
+    mode: '0755'
+  with_items:
+    - /var/log/named
+    - /var/named/primary
