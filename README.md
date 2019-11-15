@@ -120,7 +120,7 @@ If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the v
 
 `(hypervisor)# ansible-playbook playbooks/01-ocp-vms.yaml`
 
-`(hypervisor)# ansible-playbook playbooks/02-ocp-util.yaml`
+`(hypervisor)# ansible-playbook playbooks/02-ocp-util-node.yaml`
 
 `(hypervisor)# ansible-playbook playbooks/03-ocp-init.yaml`
 
