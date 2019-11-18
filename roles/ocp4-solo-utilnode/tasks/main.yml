@@ -183,6 +183,14 @@
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
 
+- name: Config haproxy to start after DNS is available
+  replace:
+    path: /usr/lib/systemd/system/haproxy.service
+    replace: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && "
+    regexp: '^ExecStartPre='
+  tags:
+  - haproxyservicecfg
+
 - name: Copy httpd conf file
   copy:
     src: ../files/httpd.conf
