@@ -183,6 +183,14 @@
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
 
+- name: Config haproxy to start after DNS is available
+  replace:
+    path: /usr/lib/systemd/system/haproxy.service
+    replace: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && "
+    regexp: '^ExecStartPre='
+  tags:
+  - haproxyservicecfg
+
 - name: Copy httpd conf file
   copy:
     src: ../files/httpd.conf
@@ -828,20 +836,14 @@
     remote_src: yes
 
 - name: Copy kubelet bootstrap certs yaml over
-  template:
+  copy:
     src: kubelet-bootstrap-cred-manager-ds.yaml
     dest: "{{ ansible_user_dir }}/kubelet-bootstrap-cred-manager-ds.yaml"
-    owner: root
-    group: root
-    mode: 0555
 
 - name: Copy CSR approval Ansible playbook over
-  template:
+  copy:
     src: ocp-approve-csr.yaml
     dest: "{{ ansible_user_dir }}/ocp-approve-csr.yaml"
-    owner: root
-    group: root
-    mode: 0555
 
 - name: restart haproxy service
   service:
