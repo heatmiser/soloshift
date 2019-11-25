@@ -183,11 +183,25 @@
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
 
-- name: Config haproxy to start after DNS is available
+- name: Config haproxy to start after DNS is available - Fedora
   replace:
     path: /usr/lib/systemd/system/haproxy.service
     replace: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && "
     regexp: '^ExecStartPre='
+    firstmatch: yes
+  when:
+    - ansible_distribution == 'Fedora'
+  tags:
+  - haproxyservicecfg
+
+- name: Config haproxy to start after DNS is available - RHEL/CentOS
+  lineinfile:
+    path: /usr/lib/systemd/system/haproxy.service
+    insertbefore: "ExecStart="
+    line: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && "
+    firstmatch: yes
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
   tags:
   - haproxyservicecfg
 
