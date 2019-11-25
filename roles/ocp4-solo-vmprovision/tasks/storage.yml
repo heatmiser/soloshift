@@ -1,0 +1,179 @@
+---
+- name: ansible-playbook pwd
+  run_once: True
+  set_fact:
+    ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+  failed_when: ansible_playbook_pwd == ''
+
+- name: current local user
+  run_once: True
+  set_fact:
+    ansible_local_user: "{{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True) | d(lookup('env', 'USER'), True) |  d(lookup('env', 'user'), True) |  d(lookup('env', 'LOGNAME'), True) }}"
+  failed_when: ansible_local_user == ''
+  tags:
+    - ssh_key
+
+- name: current local group
+  run_once: True
+  set_fact:
+    ansible_local_group: "{{ lookup('pipe', 'id -gn') }}"
+  failed_when: ansible_local_group == ''
+  tags:
+    - ssh_key
+
+- name: current local user home
+  run_once: True
+  set_fact:
+    ansible_local_home: "{{ lookup('env', 'HOME') }}"
+  failed_when: ansible_local_home == ''
+  tags:
+    - ssh_key
+
+- name: Create VM image OS properties file
+  shell: >
+    virt-cat -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} /etc/*-release | grep = > /tmp/vm_base_image.properties
+  tags:
+    - ocp_vms_base_image_props
+
+- name: Set VM image OS distribution
+  vars:
+    regex: "[`'\"]"
+    replace: ""
+  set_fact:
+    ocp_vms_base_image_distro: "{{ lookup('ini', 'ID type=properties file=/tmp/vm_base_image.properties')|regex_replace(regex, replace) }}"
+  tags:
+    - ocp_vms_base_image_props
+
+- debug: msg="ocp_vms_base_image_distro = {{ ocp_vms_base_image_distro }}"
+  tags:
+    - ocp_vms_base_image_props
+
+- name: Create storage machine disks
+  # Create a disk size that is 1GB more than expected to avoid partitioning issues.
+  command: "qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}_{{ item.name }}.qcow2 {{ item.size + 1 }}G"
+  args:
+    creates: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}_{{ item.name }}.qcow2"
+  with_items:
+    - "{{ ocp_vms_storage_node }}"
+  when: not ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_images
+
+- name: Creating storage VM images (via Ansible copy)
+  copy:
+    src: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
+    dest: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
+    remote_src: True
+  loop: "{{ ocp_vms_storage_node }}"
+  when: ocp_vms_preprovisioned and
+        (ocp_vms_copy_method == "ansible")
+
+- name: Creating storage VM images (lab VMs utilizing backing VM image - qemu-img)
+  command: >
+    qemu-img create -f qcow2 -b
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
+  loop: "{{ ocp_vms_storage_node }}"
+  when: ocp_vms_preprovisioned and
+        (ocp_vms_copy_method == "qemu-img")
+
+- name: Creating storage VM images (via cp --reflink)
+  command: >
+    cp --reflink
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
+    "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
+  loop: "{{ ocp_vms_storage_node }}"
+  when: ocp_vms_preprovisioned and
+        (ocp_vms_copy_method == "reflink")
+
+- name: Create data storage disks
+  command: "qemu-img create -f qcow2 {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}-data.qcow2 {{ item.datadisksize }}G"
+  args:
+    creates: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}_{{ item.name }}.qcow2"
+  with_items:
+    - "{{ ocp_vms_storage_node }}"
+  tags:
+    - ocp_vms_images
+
+- name: Create the storage kickstart file
+  template:
+    src: storage-{{ ocp_vms_storage_os }}.cfg.j2
+    dest: /tmp/ocp_vms_storage.cfg
+    force: True
+  when: not ocp_vms_preprovisioned
+  tags:
+    - template
+
+- name: "Generate storage ifcfg mac addr and set fact"
+  set_fact:
+    storage_mac_addr: "{{ '52:54:00' | random_mac }}"
+  when: ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_storage
+    - storage_ifcfg
+
+- name: Create the storage virtual machine
+  command: >
+    virt-install
+    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_storage_name }}
+    --vcpus {{ ocp_vms_storage_cpus }}
+    --memory {{ item.ram }}
+    --controller type=scsi,model=virtio-scsi \
+    {% if ocp_vms_hugepages %}--memorybacking hugepages=on{% endif %}
+    --os-variant rhel7.0
+    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_storage_name }}.qcow2,bus=scsi,discard='unmap',format=qcow2
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_storage_name }}-data.qcow2,bus=scsi,discard='unmap',format=qcow2
+    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ storage_mac_addr }}
+    {% if not ocp_vms_preprovisioned %}
+    --location {{ ocp_vms_el_url }}
+    --initrd-inject /tmp/ocp_vms_storage.cfg --extra-args="inst.ks=file:/ocp_vms_storage.cfg{% if ocp_vms_console %} console=tty0 console=ttyS0,115200n8{% endif %}"
+    {% endif %}
+    --boot menu=on --nographics --noreboot --serial pty
+    {% if ocp_vms_console and ocp_vms_preprovisioned %}
+    --console pty,target_type=virtio
+    {% endif %}
+    {% if ocp_vms_no_auto_vm_console %}
+    --noautoconsole
+    {% endif %}
+    {% if ocp_vms_preprovisioned %}--import{% endif %}
+  loop: "{{ ocp_vms_storage_node }}"
+  tags:
+    - ocp_vms_storage
+
+- name: Generate storage ifcfg-eth0 file
+  template:
+    src: storage-ifcfg-eth0.j2
+    dest: /tmp/ifcfg-eth0
+    force: True
+  vars:
+    net_with_mask: "{{ ocp_vms_net_cidr | ipaddr('network') }}/{{ ocp_vms_net_cidr | ipaddr('netmask') }}"
+  when: ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_storage
+    - storage_ifcfg
+
+- name: Import storage ifcfg-eth0 into vm image and set hostname
+  command: >
+    virt-customize
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_storage_name }}.qcow2
+    --hostname {{ ocp_vms_storage_name }}.{{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_openshift_rootdomain }}
+    --copy-in /tmp/ifcfg-eth0:/etc/sysconfig/network-scripts
+    --selinux-relabel
+  no_log: "{{ ocp_vms_no_log }}"
+  when: ocp_vms_preprovisioned
+  tags:
+    - ocp_vms_storage
+
+- name: Set nameserver ip in resolv.conf
+  shell: >
+    echo "nameserver {{ util.ipaddr }}" > /tmp/resolv.conf;
+    virt-customize
+    -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_storage_name }}.qcow2
+    --copy-in /tmp/resolv.conf:/etc
+    --selinux-relabel
+  no_log: "{{ ocp_vms_no_log }}"
+  when:
+    - ocp_vms_preprovisioned
+  with_items:
+    - "{{ ocp_vms_storage_node }}"

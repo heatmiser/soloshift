@@ -1,0 +1,43 @@
+---
+- hosts: hypervisor
+  become: true
+  tasks:
+  - name: "Deploy Storage VM for OCP4 Solo Lab"
+    import_role:
+      name: ocp4-solo-vmprovision
+      tasks_from: storage
+    tags: deploy_storage_node
+
+- hosts: hypervisor
+  become: true
+  tasks:
+  - name: start util vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ util.name }}"
+      state: running
+
+- hosts: storage
+  become: true
+  gather_facts: no
+  tasks:
+  - name: Wait for connection...
+    wait_for_connection:
+      delay: 10
+      timeout: 120
+
+- hosts: storage
+  become: true
+  tasks:
+  - name: "RHN registration and repo enablement"
+    import_role:
+      name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_enable_explicit_repos_only: "yes"
+      redhat_subscription_disable_repos: []
+      redhat_subscription_enable_repos:
+        - rhel-7-server-rpms
+        - rhel-7-server-extras-rpms
+    register: registration_result
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    when:
+      - ansible_distribution == 'RedHat'
