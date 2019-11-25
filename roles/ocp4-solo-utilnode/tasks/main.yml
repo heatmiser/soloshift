@@ -409,7 +409,7 @@
   when: matchbox
 
 - name: create matchbox user
-  user: name={{ item.name }} group={{ item.group }} state=present shell={{ item.shell }}
+  user: name={{ item.name }} group={{ item.group }} shell={{ item.shell }} state=present
   with_items:
     - { name: 'matchbox', group: 'matchbox', shell: '/sbin/nologin' }
   when: matchbox
