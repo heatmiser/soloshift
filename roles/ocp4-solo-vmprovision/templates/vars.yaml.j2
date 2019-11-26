@@ -45,3 +45,6 @@ workers:
     ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(29 +loop.index) }}"
     macaddr: "{{ macaddr }}"
 {% endfor %}
+storage:
+  name: "{{ ocp_vms_storage_name }}"
+  ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(7) }}"
