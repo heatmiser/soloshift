@@ -1,0 +1,49 @@
+---
+- hosts: hypervisor
+  become: true
+  tasks:
+  - name: ansible-playbook pwd
+    run_once: True
+    set_fact:
+      ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+    failed_when: ansible_playbook_pwd == ''
+
+  - name: stop bootstrap vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: destroyed
+    with_items:
+    - "{{ bootstrap }}"
+    ignore_errors: yes
+
+  - name: record bootstrap VM image path
+    shell: >
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
+      echo "[bootstrap]" >> /tmp/vm_img_path.ini;
+      echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
+    with_items:
+    - "{{ bootstrap }}"
+    ignore_errors: yes
+    tags:
+    - vm_image_path_dict
+
+  - name: Pause for 15 seconds
+    pause:
+      seconds: 15
+
+  - name: undefine bootstrap vm
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      command: undefine
+    with_items:
+    - "{{ bootstrap }}"
+    ignore_errors: yes
+
+  - name: "Remove bootstrap vm image file"
+    vars:
+      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=bootstrap file=/tmp/vm_img_path.ini') }}"
+    shell: >
+        rm -f {{ vm_image_path }}
+    with_items:
+    - "{{ bootstrap }}"
+    ignore_errors: yes
