@@ -177,7 +177,7 @@ This will trigger the Cluster Operators to re-create the CSR signer secrets. You
 
 Once all Cluster Operators show Available=True, Progressing=False and Degraded=False the cluster can be safely shutdown.
 
-If you did not re-create the CSR signer secrets used to sign the kubelet client certificate CSRs and the cluster missed the initial 24 hour certicate rotation some nodes in the cluster may be in the NotReady state. Follow the instructions at the end of [this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) to rectify.  An Ansible playbook `ocp-approve-csr.yaml` has been included in the root user's home dir that can be run as part of the rectification process.
+If you did not re-create the CSR signer secrets used to sign the kubelet client certificate CSRs and the cluster missed the initial 24 hour certificate rotation, some nodes in the cluster may be in the NotReady state. Follow the instructions at the end of [this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) to rectify.  An Ansible playbook `ocp-approve-csr.yaml` has been included in the root user's home dir that can be run as part of the rectification process.
 
 Enjoy your OpenShift 4 cluster environment!  When you're ready to tear everything down, execute:
 
