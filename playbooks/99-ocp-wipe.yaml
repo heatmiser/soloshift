@@ -53,6 +53,7 @@
       state: destroyed
     with_items:
     - "{{ bootstrap }}"
+    ignore_errors: yes
 
   - name: stop master vm(s)
     virt:
@@ -92,6 +93,7 @@
       echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
     with_items:
     - "{{ bootstrap }}"
+    ignore_errors: yes
     tags:
     - vm_image_path_dict
 
@@ -160,6 +162,7 @@
       command: undefine
     with_items:
     - "{{ bootstrap }}"
+    ignore_errors: yes
 
   - name: undefine master vm(s)
     virt:
@@ -196,6 +199,7 @@
         rm -f {{ vm_image_path }}
     with_items:
     - "{{ bootstrap }}"
+    ignore_errors: yes
 
   - name: "Remove master vm image file(s)"
     vars:
