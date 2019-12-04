@@ -47,7 +47,7 @@ ocp_vms_storage_node:
     # Primary disk size in gigabytes.
     size: 30
     # Data disk size in gigabytes.
-    datadisksize: 100
+    datadisksize: 200
     # Size in megabytes.
     ram: 1024
 # The names are also used to create the virtual machines.
