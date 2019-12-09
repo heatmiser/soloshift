@@ -1,3 +1,4 @@
+#vim: set ft=ansible:
 ---
 - hosts: localhost
   gather_facts: false
@@ -20,11 +21,39 @@
       ansible_local_group: "{{ lookup('pipe', 'id -gn') }}"
     failed_when: ansible_local_group == ''
 
-  - name: Add Storage VM to in-memory inventory
+- hosts: util
+  gather_facts: true
+  become: true
+  tasks:
+  - name: "Set ocp_vms_base_image_distro fact based on {{ util.name }} OS distro"
+    set_fact:
+      #ocp_vms_base_image_distro: "{{ util.ansible_distribution }}"
+      ocp_vms_base_image_distro: "{{ hostvars[util.name]['ansible_facts']['distribution'] }}"
+  - name: "debug"
+    debug: var=ocp_vms_base_image_distro
+
+- hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: Add Storage VM to in-memory inventory - RHEL/CentOS
     add_host:
       hostname: "{{ storage.ipaddr }}"
       host: "{{ storage.name }}"
       ansible_user: root
+    when:
+      #- ocp_vms_base_image_distro == 'RedHat' or ocp_vms_base_image_distro == 'CentOS'
+      - hostvars[util.name]['ansible_facts']['distribution'] == 'RedHat' or hostvars[util.name]['ansible_facts']['distribution'] == 'CentOS'
+    tags: storage_node_dns
+
+  - name: Add Storage VM to in-memory inventory - Fedora
+    add_host:
+      hostname: "{{ storage.ipaddr }}"
+      host: "{{ storage.name }}"
+      ansible_user: root
+      ansible_python_interpreter: /usr/bin/python3
+    when:
+      #- ocp_vms_base_image_distro == 'Fedora'
+      - hostvars[util.name]['ansible_facts']['distribution'] == 'Fedora'
     tags: storage_node_dns
 
 - hosts: hypervisor
@@ -133,7 +162,7 @@
   - name: Add Storage VM inventory entry
     lineinfile:
       path: "{{ ansible_playbook_pwd }}/inventory/{{ dns.clusterid }}_vms"
-      line: "{{ storage.name }} ansible_host={{ storage.ipaddr }} ansible_user=root"
+      line: "{{ storage.name }} ansible_host={{ storage.ipaddr }} ansible_user=root{% if ansible_distribution == 'Fedora' %} ansible_python_interpreter=/usr/bin/python3{% endif %}"
       insertbefore: BOF
       mode: 0660
       owner: "{{ ansible_local_user }}"
