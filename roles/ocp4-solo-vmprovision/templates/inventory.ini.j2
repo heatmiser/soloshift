@@ -1,5 +1,6 @@
 {% for item in ocp_vms_utility_node %}
-{{ item.name }} ansible_host={{ ocp_vms_net_cidr | next_nth_usable(8) }} ansible_user=root
+{{ item.name }} ansible_host={{ ocp_vms_net_cidr | next_nth_usable(8) }} ansible_user=root{% if ansible_distribution == 'Fedora' %} ansible_python_interpreter=/usr/bin/python3
+{% endif %}
 {% endfor %}
 {% for item in ocp_vms_bootstrap_node %}
 {{ item.name }} ansible_host={{ ocp_vms_net_cidr | next_nth_usable(9) }} ansible_user=core
