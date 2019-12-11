@@ -142,7 +142,7 @@
       when:
         - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
 
-    - name: Update all packages
+    - name: Update all packages - Fedora
       dnf:
         name: '*'
         state: latest
