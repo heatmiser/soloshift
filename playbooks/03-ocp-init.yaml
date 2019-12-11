@@ -45,3 +45,16 @@
     with_items:
     - "{{ infras }}"
     when: infras | length > 0
+
+- hosts: util
+  become: true
+  gather_facts: true
+  tasks:
+  - name: >
+      Wait until the string "Working towards 4.x.y: 100% complete" is in the file .openshift_install.log before continuing...
+    wait_for:
+      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+      search_regex: Working\ towards\ 4\.[0-9]\.[0-9]\:\ 100\%\ complete
+      timeout: 6000
+  tags:
+    - ocp_install_log_wait
