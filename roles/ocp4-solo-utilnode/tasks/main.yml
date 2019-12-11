@@ -186,9 +186,8 @@
 - name: Config haproxy to start after DNS is available - Fedora
   replace:
     path: /usr/lib/systemd/system/haproxy.service
-    replace: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && "
-    regexp: '^ExecStartPre='
-    firstmatch: yes
+    replace: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && /usr/sbin/haproxy"
+    regexp: '^ExecStartPre=/usr/sbin/haproxy'
   when:
     - ansible_distribution == 'Fedora'
   tags:
