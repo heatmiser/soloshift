@@ -32,8 +32,9 @@ options {
 	forward only;
 	forwarders { {{ dns.forwarder1 | default("8.8.8.8") }}; {{ dns.forwarder2 | default("8.8.4.4") }}; };
 
-	dnssec-enable yes;
-	dnssec-validation yes;
+	dnssec-enable no;
+	dnssec-validation no;
+	dnssec-lookaside auto;
 
 	managed-keys-directory "/var/named/dynamic";
 
