@@ -274,6 +274,9 @@
 - name: noodle for rhcos installer initramfs file
   script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs"
   register: rhcosinitramfs
+  retries: 4
+  delay: 30
+  until: rhcosinitramfs.rc == 0
   tags:
     - noodlin
 
@@ -292,6 +295,9 @@
 - name: noodle for rhcos installer kernel file
   script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel"
   register: rhcoskernel
+  retries: 4
+  delay: 30
+  until: rhcoskernel.rc == 0
   tags:
     - noodlin
 
@@ -310,6 +316,9 @@
 - name: noodle for rhcos metal bios file
   script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal-bios"
   register: rhcosmetalbios
+  retries: 4
+  delay: 30
+  until: rhcosmetalbios.rc == 0
   tags:
     - noodlin
 
@@ -706,6 +715,9 @@
 - name: noodle for OC client tarball
   script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux"
   register: occlient
+  retries: 4
+  delay: 30
+  until: occlient.rc == 0
   tags:
     - noodlin
 
@@ -724,6 +736,9 @@
 - name: noodle for OpenShift Installer tarball
   script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux"
   register: ospinstaller
+  retries: 4
+  delay: 30
+  until: ospinstaller.rc == 0
   tags:
     - noodlin
 
