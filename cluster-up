@@ -1,0 +1,5 @@
+#!/bin/bash
+
+ansible-playbook playbooks/01-ocp-vms.yaml 
+ansible-playbook playbooks/02-ocp-util-node.yaml 
+ansible-playbook playbooks/03-ocp-init.yaml 
