@@ -73,10 +73,10 @@
     poll: 0
 
   - name: >
-      Wait until the string "Working towards 4.x.y: 100% complete" is in the file .openshift_install.log before continuing...
+      Wait until the string "Working towards 4.x.y: 99% complete" is in the file .openshift_install.log before continuing...
     wait_for:
       path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: Working\ towards\ 4\.(.*)\ 100\%\ complete
+      search_regex: Working\ towards\ 4\.(.*)\ 99\%\ complete
       timeout: 2000
       sleep: 10
 
