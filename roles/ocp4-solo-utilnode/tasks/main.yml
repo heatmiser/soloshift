@@ -313,12 +313,23 @@
   tags:
     - noodlin
 
-- name: noodle for rhcos metal bios file
+- name: noodle for rhcos metal bios file - RHOCP 4.2 and earlier
   script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal-bios"
   register: rhcosmetalbios
   retries: 4
   delay: 30
   until: rhcosmetalbios.rc == 0
+  when: ocp_vms_openshift_release is version('4.2', '<=')
+  tags:
+    - noodlin
+
+- name: noodle for rhcos metal file - RHOCP 4.3 and later
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal"
+  register: rhcosmetalbios
+  retries: 4
+  delay: 30
+  until: rhcosmetalbios.rc == 0
+  when: ocp_vms_openshift_release is version('4.3', '>=')
   tags:
     - noodlin
 
