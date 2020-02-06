@@ -2,6 +2,26 @@
 - hosts: hypervisor
   become: true
   tasks:
+  - name: "verify libvirt network {{ ocp_vms_openshift_subdomain }}-private is active"
+    shell: >
+      virsh net-list --all | grep {{ ocp_vms_openshift_subdomain }}-private | awk '{print $2}'
+    register: network_state
+    tags:
+    - network_state
+
+  - name: "network_state {{ ocp_vms_openshift_subdomain }}-private debug - stdout"
+    debug: var=network_state.stdout
+    tags:
+    - network_state
+
+  - name: "activate libvirt network {{ ocp_vms_openshift_subdomain }}-private"
+    shell: >
+      virsh net-start {{ ocp_vms_openshift_subdomain }}-private
+    when:
+     - network_state.stdout == "inactive"
+    tags:
+    - network_state
+
   - name: start util vm
     virt:
       name: "{{ dns.clusterid }}.{{ util.name }}"
