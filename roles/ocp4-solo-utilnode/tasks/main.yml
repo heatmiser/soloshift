@@ -87,7 +87,6 @@
           - git
           - vim
           - bash-completion
-          - libselinux-python
           - NetworkManager
           - firewalld
           - python3-firewall
@@ -127,6 +126,16 @@
       register: dnfup_code
   when:
     - ansible_distribution == 'Fedora'
+
+- name: Package installations when utilizing Fedora 30 and older
+  dnf:
+    name:
+      - libselinux-python
+    state: present
+  tags:
+    - util_pkgs
+  when:
+    - ansible_distribution == 'Fedora' and ansible_distribution_version|int <= 30
 
 - name: Write out dhcp file
   template:
