@@ -16,5 +16,5 @@ ocp_vms_net_cidr: 192.168.8.0/24
 ocp_vms_master_count: 1
 ocp_vms_infra_count: 1
 ocp_vms_worker_count: 1
-ocp_vms_openshift_pullsecret_file: pull-secret.txt 
+ocp_vms_openshift_pullsecret_file: pull-secret.txt
 ocp_vms_util_node: True
