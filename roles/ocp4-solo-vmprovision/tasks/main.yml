@@ -77,7 +77,20 @@
   tags:
     - ocp_vms_base_image_props
 
+- name: Set VM image OS distribution version
+  vars:
+    regex: "[`'\"]"
+    replace: ""
+  set_fact:
+    ocp_vms_base_image_distro_version: "{{ lookup('ini', 'VERSION_ID type=properties file=/tmp/vm_base_image.properties')|regex_replace(regex, replace) }}"
+  tags:
+    - ocp_vms_base_image_props
+
 - debug: msg="ocp_vms_base_image_distro = {{ ocp_vms_base_image_distro }}"
+  tags:
+    - ocp_vms_base_image_props
+
+- debug: msg="ocp_vms_base_image_distro_version = {{ ocp_vms_base_image_distro_version }}"
   tags:
     - ocp_vms_base_image_props
 
