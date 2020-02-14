@@ -11,7 +11,7 @@
 
 - hosts: util
   become: true
-  gather_facts: no
+  gather_facts: true
   tasks:
   - name: Wait for connection...
     wait_for_connection:
@@ -23,7 +23,7 @@
 - hosts: util
   become: true
   tasks:
-  - name: "RHN registration and repo enablement"
+  - name: "RHN registration and repo enablement - RHEL7"
     import_role:
       name: devnullcake.redhat-subscription
     vars:
@@ -35,7 +35,20 @@
     register: registration_result
     failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
-      - ansible_distribution == 'RedHat'
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+      - ocp_vms_util_node
+
+  - name: "RHN registration and repo enablement - RHEL8"
+    import_role:
+      name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_enable_explicit_repos_only: "yes"
+      redhat_subscription_disable_repos: []
+      redhat_subscription_enable_repos: []
+    register: registration_result
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    when:
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
       - ocp_vms_util_node
 
   - name: "Configure utility node"

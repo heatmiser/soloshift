@@ -35,7 +35,6 @@
           - git
           - vim
           - bash-completion
-          - libselinux-python
           - NetworkManager
           - firewalld
           - podman
@@ -51,14 +50,23 @@
         state: present
       when: not matchbox
 
-    - name: Install packages for DHCP/PXE install
+    - name: Install packages for DHCP/PXE install - RHEL7
       yum:
         name:
           - dhcp
           - syslinux
           - tftp-server
         state: present
-      when: not staticips
+      when: not staticips and ansible_distribution_major_version|int <= 7
+
+    - name: Install packages for DHCP/PXE install - RHEL8
+      yum:
+        name:
+          - dhcp-server
+          - syslinux
+          - tftp-server
+        state: present
+      when: not staticips and ansible_distribution_major_version|int >= 8
 
     - name: Install package for iPXE boot images
       yum:
@@ -74,6 +82,16 @@
       register: yumup_code
   when:
     - ansible_distribution == 'RedHat'
+
+- name: Package installations when utilizing RHEL7 and older
+  dnf:
+    name:
+      - libselinux-python
+    state: present
+  tags:
+    - util_pkgs
+  when:
+    - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
 
 - name: Package installation on Fedora
   block:
@@ -632,7 +650,7 @@
     dest: /etc/resolv.conf
 
 - name: Get network interface name
-  shell: "nmcli con show | tail -1 | awk '{print $1}'"
+  shell: "nmcli con show --active | tail -1 | awk '{print $1}'"
   register: networkinterfacename
 
 - name: Setting network interface name as a fact
