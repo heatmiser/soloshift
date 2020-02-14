@@ -269,3 +269,4 @@
     - "{{ playbook_dir }}/install-config.yaml.intermediate.j2"
     - "{{ ansible_playbook_pwd }}/inventory/group_vars/all/vars.yaml"
     - "{{ ansible_playbook_pwd }}/ocp4upi"
+    - /tmp/vm_img_path.ini
