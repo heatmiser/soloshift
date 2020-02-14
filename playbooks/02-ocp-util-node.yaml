@@ -11,17 +11,20 @@
 
 - hosts: util
   become: true
-  gather_facts: true
+  gather_facts: false
   tasks:
   - name: Wait for connection...
     wait_for_connection:
-      delay: 10
-      timeout: 120
+      connect_timeout: 20
+      sleep: 5
+      delay: 5
+      timeout: 300
     when:
       - ocp_vms_util_node
 
 - hosts: util
   become: true
+  gather_facts: true
   tasks:
   - name: "RHN registration and repo enablement - RHEL7"
     import_role:
