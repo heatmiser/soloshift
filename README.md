@@ -17,11 +17,17 @@ A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 16GB 
 Installation
 ------------
 
+The system where commands are to be executed is listed in parentheses next to the shell prompt. All commands are to be executed as a non-root user with sudo capabilities, unless otherwise noted in the instructions preceding a step.
+
 For CentOS hypervisors, skip to step 2.
 
 For Fedora hypervisors, skip to step 3.
 
-1) If you're using RHEL for the base hypervisor OS, then you'll need to register the system and configure the system subscription first. As root, or via sudo:
+1) If you're using RHEL for the base hypervisor OS, then you'll need to register the system and configure the system subscription first.
+
+> **NOTE**: While RHEL 8.1+ is supported for the guest VMs, currently only RHEL 7.x has been tested for the hypervisor system and the following instructions reflect this.
+
+As root, or via sudo:
 
 - Red Hat username and password
 
@@ -87,8 +93,8 @@ or
 * `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
 * `redhat_subscription_pool_regex`: If utilizing username/password, supply a regex to match on the desired pool. For example, to match on a subscription pool named Red Hat Enterprise Server, use "^Red Hat Enterprise Server$"
 
-* `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads
-* `ocp_vms_openshift_release`: 4.1 - OpenShift version to deploy; 4.1, 4.2, or pre-release
+* `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads --also, Fedora or CentOS cloud KVM qcow2 images can be used as well
+* `ocp_vms_openshift_release`: 4.1 - OpenShift version to deploy; 4.1, 4.2, 4.3 or pre-release
 * `ocp_vms_openshift_subdomain`: ocp41 - name for top level DNS sub-domain
 * `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
 * `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
@@ -104,7 +110,7 @@ By default, SoloShift deploys VMs utilizing sparse backing files.  When creating
 
 > **NOTE**: A basic installation utilizing soloshift (with default values) to deploy an OpenShift 4 cluster comprised of 1 master, 1 infrastructure, and 1 worker, with one utility node will require just under 40GB of space to complete the installation. Additional space will be required over time as the cluster is used.
 
-> **NOTE**: Storage overcommit can potentially lead to completely filling the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`. Be sure to keep this in mind and monitor overall volume capacity
+> **NOTE**: Storage overcommit can potentially lead to completely filling the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`. Be sure to keep this in mind and monitor overall volume capacity.
 
 Deploy All-in-One OCP4
 ------------
@@ -126,31 +132,31 @@ If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the v
 
 `(hypervisor)# ansible-playbook playbooks/03-ocp-init.yaml`
 
-Either access the util vm console via virt-viewer or ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your user's .ssh directory prefixed with whatever was set for `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in to the util node as root.
+Either access the util vm console via virt-viewer or use another shell and ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your user's .ssh directory prefixed with whatever was set for `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in to the util node as root.
 
 After logging in to the util node as root, execute:
 
 `(util)# openshift-install --dir=/root/ocp4upi wait-for bootstrap-complete --log-level debug`
 
-Eventually, you'll see a log message saying that it's ok to shutdown the bootstrap machine. Back on the hypervisor system, shutdown the bootstrap node, either via the Virtual Machine Manager or `virsh` command line tool.
+> **NOTE**: While the 03-ocp-init.yaml playbook is running, eventually you will see a message stating "It is now safe to remove the bootstrap resources". If you would like to conserve space and system resources (highly recommended at this point in the deployment on systems with 16GB RAM), back on the hypervisor you can open another shell, cd to the root of the soloshift working directory and execute the following, even while the 03-ocp-init.yaml playbook is still running:
 
-Next, patch the image registry to use local storage:
+`(hypervisor)# ansible-playbook playbooks/eject-bootstrap.yaml`
+
+Eventually, you should see a debug message in the shell where the 03-ocp-init.yaml playbook is running: "Complete storage setup now..."
+
+At this point, patch the image registry to use local storage:
 
 > **NOTE**: Adding persistent storage options (NFS, iSCSI, etc) to soloshift is a work in progress 
 
-`(util)# oc patch configs.imageregistry.operator.openshift.io cluster \`
-
-`--type merge \`
-
-`--patch '{"spec":{"storage":{"emptyDir":{}}}}'`
+	(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
+		--type merge \
+		--patch '{"spec":{"storage":{"emptyDir":{}}}}'
 
 If you receive a message like "cluster does not exist" or "cluster not found", wait a bit and rerun.
 
-And finally, watch for the "Install complete!" message, which will be followed by auth creds to log into the console...
-
 `(util)# openshift-install --dir=/root/ocp4upi wait-for install-complete --log-level debug`
 
-Watch for the "Install complete!" message, which will be followed by auth creds to log into the console.
+And finally, watch for the "Install complete!" message, which will be followed by auth creds to log into the console.
 
 You can also view the status of the bootstrap process as nodes come and go by checking out the haproxy status page at http://192.168.8.8:9000
 
