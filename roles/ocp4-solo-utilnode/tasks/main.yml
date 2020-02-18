@@ -84,7 +84,7 @@
     - ansible_distribution == 'RedHat'
 
 - name: Package installations when utilizing RHEL7 and older
-  dnf:
+  yum:
     name:
       - libselinux-python
     state: present
