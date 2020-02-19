@@ -24,7 +24,7 @@
   tags:
     - local_user
 
-- name: Package installation on RHEL
+- name: Package installation on RHEL/CentOS
   block:
     - name: Install base packages
       yum:
@@ -50,7 +50,7 @@
         state: present
       when: not matchbox
 
-    - name: Install packages for DHCP/PXE install - RHEL7
+    - name: Install packages for DHCP/PXE install - RHEL/CentOS7
       yum:
         name:
           - dhcp
@@ -81,7 +81,7 @@
         state: latest
       register: yumup_code
   when:
-    - ansible_distribution == 'RedHat'
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
 
 - name: Package installations when utilizing RHEL7 and older
   yum:
@@ -91,7 +91,7 @@
   tags:
     - util_pkgs
   when:
-    - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+    - (ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS') and ansible_distribution_major_version|int <= 7
 
 - name: Package installation on Fedora
   block:
@@ -649,27 +649,6 @@
     src: bind/resolv.conf.j2
     dest: /etc/resolv.conf
 
-- name: Get network interface name
-  shell: "nmcli con show --active | tail -1 | awk '{print $1}'"
-  register: networkinterfacename
-
-- name: Setting network interface name as a fact
-  set_fact:
-    networkifacename: "{{ networkinterfacename.stdout }}"
-
-- name: Setting DNS server ip on network interface "{{ networkifacename }}" to 127.0.0.1
-  command: "nmcli con mod {{ networkifacename }}  ipv4.dns 127.0.0.1"
-
-- name: Setting DNS search path on network interface "{{ networkifacename }}" to "{{ dns.clusterid }}.{{ dns.domain }}"
-  command: "nmcli con mod {{ networkifacename }}  ipv4.dns-search {{ dns.clusterid }}.{{ dns.domain }}"
-
-- name: Restarting NetworkManager
-  service:
-    name: "{{ item }}"
-    state: restarted
-  with_items:
-    - NetworkManager
-
 - name: "Starting {{ item }} service"
   service:
     name: "{{ item }}"
@@ -695,6 +674,27 @@
     - NetworkManager
   when:
     - matchbox
+
+- name: Get network interface name
+  shell: "nmcli con show --active | tail -1 | awk '{print $1}'"
+  register: networkinterfacename
+
+- name: Setting network interface name as a fact
+  set_fact:
+    networkifacename: "{{ networkinterfacename.stdout }}"
+
+- name: Setting DNS server ip on network interface "{{ networkifacename }}" to 127.0.0.1
+  command: "nmcli con mod {{ networkifacename }}  ipv4.dns 127.0.0.1"
+
+- name: Setting DNS search path on network interface "{{ networkifacename }}" to "{{ dns.clusterid }}.{{ dns.domain }}"
+  command: "nmcli con mod {{ networkifacename }}  ipv4.dns-search {{ dns.clusterid }}.{{ dns.domain }}"
+
+- name: Restarting NetworkManager to effect changes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - NetworkManager
 
 - name: Starting DHCP/PXE services
   service:
