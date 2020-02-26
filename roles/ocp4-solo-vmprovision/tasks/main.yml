@@ -62,35 +62,46 @@
   tags:
     - ssh_key
 
-- name: Create VM image OS properties file
+- name: Probe VM base image for OS distribution
   shell: >
-    virt-cat -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} /etc/*-release | grep = > /tmp/vm_base_image.properties
+    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} | xmllint --xpath '//operatingsystems/operatingsystem/distro/text()' -
+  register: distroname
   tags:
     - ocp_vms_base_image_props
 
 - name: Set VM image OS distribution
-  vars:
-    regex: "[`'\"]"
-    replace: ""
   set_fact:
-    ocp_vms_base_image_distro: "{{ lookup('ini', 'ID type=properties file=/tmp/vm_base_image.properties')|regex_replace(regex, replace) }}"
+    ocp_vms_base_image_distro: "{{ distroname.stdout }}"
   tags:
     - ocp_vms_base_image_props
 
-- name: Set VM image OS distribution version
-  vars:
-    regex: "[`'\"]"
-    replace: ""
+- name: Probe VM base image for OS distribution major version
+  shell: >
+    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} | xmllint --xpath '//operatingsystems/operatingsystem/major_version/text()' -
+  register: distromajorver
+  tags:
+    - ocp_vms_base_image_props
+
+- name: Set VM image OS distribution major version
   set_fact:
-    ocp_vms_base_image_distro_version: "{{ lookup('ini', 'VERSION_ID type=properties file=/tmp/vm_base_image.properties')|regex_replace(regex, replace) }}"
+    ocp_vms_base_image_major_version: "{{ distromajorver.stdout }}"
   tags:
     - ocp_vms_base_image_props
 
-- debug: msg="ocp_vms_base_image_distro = {{ ocp_vms_base_image_distro }}"
+- name: Probe VM base image for OS distribution minor version
+  shell: >
+    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} | xmllint --xpath '//operatingsystems/operatingsystem/minor_version/text()' -
+  register: distrominorver
   tags:
     - ocp_vms_base_image_props
 
-- debug: msg="ocp_vms_base_image_distro_version = {{ ocp_vms_base_image_distro_version }}"
+- name: Set VM image OS distribution minor version
+  set_fact:
+    ocp_vms_base_image_minor_version: "{{ distrominorver.stdout }}"
+  tags:
+    - ocp_vms_base_image_props
+
+- debug: msg="Base image distribution ==> {{ ocp_vms_base_image_distro }} {{ ocp_vms_base_image_major_version }}.{{ ocp_vms_base_image_minor_version }}"
   tags:
     - ocp_vms_base_image_props
 
