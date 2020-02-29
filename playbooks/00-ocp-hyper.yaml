@@ -4,7 +4,7 @@
   become: true
   # gather_facts: false
   tasks:
-  - name: "Register host hypervisor with RHN and add repos"
+  - name: "Register host hypervisor with RHN and add repos - RHEL 7"
     import_role:
       name: devnullcake.redhat-subscription
     vars:
@@ -14,8 +14,22 @@
         - rhel-7-server-rpms
         - rhel-7-server-extras-rpms
         - rhel-7-server-ansible-2.8-rpms
+    register: registration_result
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
-      - ansible_distribution == 'RedHat'
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+
+  - name: "Register host hypervisor with RHN and add repos - RHEL 8"
+    import_role:
+      name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_enable_explicit_repos_only: "yes"
+      redhat_subscription_disable_repos: []
+      redhat_subscription_enable_repos: []
+    register: registration_result
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    when:
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
 
   - name: "Configure host hypervisor system"
     import_role:
