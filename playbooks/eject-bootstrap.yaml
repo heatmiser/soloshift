@@ -16,16 +16,20 @@
     - "{{ bootstrap }}"
     ignore_errors: yes
 
-  - name: record bootstrap VM image path
+  - name: record bootstrap VM path
     shell: >
-      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
-      echo "[bootstrap]" > /tmp/vm_img_path.ini;
-      echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
+      virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}'
     with_items:
     - "{{ bootstrap }}"
     ignore_errors: yes
+    # Since we are looping (with_items), bsvmpath is a dictionary, with .results, use when setting facts below
+    register: bsvmpath
     tags:
     - vm_image_path_dict
+
+  - name: Set bootstrap VM path fact
+    set_fact:
+      ocp_vms_bootstrap_vm_path: "{{ bsvmpath.results[0].stdout }}"
 
   - name: Pause for 15 seconds
     pause:
@@ -39,13 +43,7 @@
     - "{{ bootstrap }}"
     ignore_errors: yes
 
-  - name: "Remove bootstrap vm image file and temp image path ini"
-    vars:
-      vm_image_path: "{{ lookup('ini', bootstrap.imgpath section=bootstrap file=/tmp/vm_img_path.ini') }}"
+  - name: Ansible virt module does not properly remove VM image for "undefine" operation, so we now remove bootstrap VM image
     file:
-      path: "{{ item }}"
+      path: "{{ ocp_vms_bootstrap_vm_path }}"
       state: absent
-    with_items:
-    - "{{ vm_image_path }}"
-    - /tmp/vm_img_path.ini
-    ignore_errors: no
