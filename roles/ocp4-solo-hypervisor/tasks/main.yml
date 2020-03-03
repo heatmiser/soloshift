@@ -40,12 +40,112 @@
   when:
       - ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
 
+- block:
+  - name: Configure libvirtd.conf - listen_tls = 0
+    lineinfile:
+      path: /etc/libvirt/libvirtd.conf
+      regexp: 'listen_tls ='
+      line: listen_tls = 0
+
+  - name: Configure libvirtd.conf - listen_tcp = 1
+    lineinfile:
+      path: /etc/libvirt/libvirtd.conf
+      regexp: 'listen_tcp ='
+      line: listen_tls = 1
+
+  - name: Configure libvirtd.conf - auth_tcp="none"
+    lineinfile:
+      path: /etc/libvirt/libvirtd.conf
+      regexp: 'auth_tcp='
+      line: auth_tcp="none"
+
+  - name: Configure libvirtd.conf - tcp_port = "16509"
+    lineinfile:
+      path: /etc/libvirt/libvirtd.conf
+      regexp: 'tcp_port ='
+      line: tcp_port = "16509"
+
+  - name: Configure the service runner to pass --listen to libvirtd - Fedora
+    lineinfile:
+      path: /etc/sysconfig/libvirtd
+      regexp: 'LIBVIRTD_ARGS='
+      line: LIBVIRTD_ARGS="--listen"
+    when:
+      - ansible_distribution == 'Fedora'
+
+  - name: enable and start the libvirtd TCP socket - Fedora 31
+    service:
+      name: libvirtd-tcp.socket
+      enabled: yes
+      state: started
+    when:
+      - ansible_distribution == 'Fedora' and ansible_distribution_major_version == '31'
+
+  - name: create firewalld rich rule, libvirt default reject
+    firewalld:
+      rich_rule: rule service name="libvirt" reject
+      permanent: yes
+      state: enabled
+    when:
+      - ansible_distribution == 'Fedora'
+
+  - name: Create private provisioning network xml definition
+    template:
+      src: virt-net-openshift-private.xml.j2
+      dest: /tmp/virt-net-openshift-private.xml
+
+  - name: Create private provisioning network
+    virt_net:
+      name: "{{ ocp_vms_openshift_subdomain }}-private"
+      command: define
+      xml: '{{ lookup("file", "/tmp/virt-net-openshift-private.xml") }}'
+
+  - name: "Add private provisioning network bridge {{ ocp_vms_openshift_subdomain }}-private to firewalld dmz zone" 
+    firewalld:
+      zone: dmz
+      interface: "{{ ocp_vms_openshift_subdomain }}-private"
+      permanent: yes
+      state: enabled
+    when:
+      - ansible_distribution == 'Fedora'
+
+  - name: "Add tt0 interface to firewalld dmz zone" 
+    firewalld:
+      zone: dmz
+      interface: tt0 
+      permanent: yes
+      state: enabled
+    when:
+      - ansible_distribution == 'Fedora'
+
+  - name: allow traffic on the libvirt port
+    firewalld:
+      zone: dmz
+      service: libvirt
+      permanent: yes
+      state: enabled
+    when:
+      - ansible_distribution == 'Fedora'
+
+  - name: allow traffic on the libvirt port
+    firewalld:
+      zone: libvirt
+      service: libvirt
+      permanent: yes
+      state: enabled
+    when:
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version == '8'
+
+  when:
+    - ocp_vms_libvirt_integration
+
 - name: "Starting {{ item }} service"
   service:
     name: "{{ item }}"
     enabled: yes
     state: started
   with_items:
+    - libvirtd
     - ksm
     - ksmtuned
 
