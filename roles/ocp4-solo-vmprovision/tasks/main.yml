@@ -62,48 +62,72 @@
   tags:
     - ssh_key
 
-- name: Probe VM base image for OS distribution
+- name: Create temporary file for base image properties
+  tempfile:
+    state: file
+    suffix: .temp
+  register: bipropstemp_1
+
+- name: Probe VM base image for image properties
   shell: >
-    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} | xmllint --xpath '//operatingsystems/operatingsystem/distro/text()' -
-  register: distroname
+    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} > {{ bipropstemp_1.path }}
+  tags:
+    - ocp_vms_base_image_props
+
+- name: Query props file for VM image OS distribution
+  xml:
+    path: "{{ bipropstemp_1.path }}"
+    xpath: //operatingsystems/operatingsystem/distro
+    content: text
+  register: distro_xml_text
   tags:
     - ocp_vms_base_image_props
 
 - name: Set VM image OS distribution
   set_fact:
-    ocp_vms_base_image_distro: "{{ distroname.stdout }}"
+    ocp_vms_base_image_distro: "{{ distro_xml_text.matches[0]['distro'] }}"
   tags:
     - ocp_vms_base_image_props
 
-- name: Probe VM base image for OS distribution major version
-  shell: >
-    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} | xmllint --xpath '//operatingsystems/operatingsystem/major_version/text()' -
-  register: distromajorver
+- name: Query props file for VM image OS distribution major version
+  xml:
+    path: "{{ bipropstemp_1.path }}"
+    xpath: //operatingsystems/operatingsystem/major_version
+    content: text
+  register: distro_major_version_xml_text
   tags:
     - ocp_vms_base_image_props
 
 - name: Set VM image OS distribution major version
   set_fact:
-    ocp_vms_base_image_major_version: "{{ distromajorver.stdout }}"
+    ocp_vms_base_image_major_version: "{{ distro_major_version_xml_text.matches[0]['major_version'] }}"
   tags:
     - ocp_vms_base_image_props
 
-- name: Probe VM base image for OS distribution minor version
-  shell: >
-    virt-inspector -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} | xmllint --xpath '//operatingsystems/operatingsystem/minor_version/text()' -
-  register: distrominorver
+- name: Query props file for VM image OS distribution minor version
+  xml:
+    path: "{{ bipropstemp_1.path }}"
+    xpath: //operatingsystems/operatingsystem/minor_version
+    content: text
+  register: distro_minor_version_xml_text
   tags:
     - ocp_vms_base_image_props
 
 - name: Set VM image OS distribution minor version
   set_fact:
-    ocp_vms_base_image_minor_version: "{{ distrominorver.stdout }}"
+    ocp_vms_base_image_minor_version: "{{ distro_minor_version_xml_text.matches[0]['minor_version'] }}"
   tags:
     - ocp_vms_base_image_props
 
 - debug: msg="Base image distribution ==> {{ ocp_vms_base_image_distro }} {{ ocp_vms_base_image_major_version }}.{{ ocp_vms_base_image_minor_version }}"
   tags:
     - ocp_vms_base_image_props
+
+- name: "Remove props file {{ bipropstemp_1.path }} using registered path var and file module"
+  file:
+    path: "{{ bipropstemp_1.path }}"
+    state: absent
+  when: bipropstemp_1.path is defined
 
 - name: Create utility machine disks
   # Create a disk size that is 1GB more than expected to avoid partitioning issues.
