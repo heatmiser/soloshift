@@ -51,7 +51,7 @@
     lineinfile:
       path: /etc/libvirt/libvirtd.conf
       regexp: 'listen_tcp ='
-      line: listen_tls = 1
+      line: listen_tcp = 1
 
   - name: Configure libvirtd.conf - auth_tcp="none"
     lineinfile:
@@ -103,7 +103,7 @@
   - name: "Add private provisioning network bridge {{ ocp_vms_openshift_subdomain }}-private to firewalld dmz zone" 
     firewalld:
       zone: dmz
-      interface: "{{ ocp_vms_openshift_subdomain }}-private"
+      interface: "{{ ocp_vms_openshift_subdomain }}-br"
       permanent: yes
       state: enabled
     when:
