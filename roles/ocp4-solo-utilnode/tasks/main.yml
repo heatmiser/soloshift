@@ -753,7 +753,7 @@
     mode: 0555
 
 - name: noodle for OC client tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }}"
   register: occlient
   retries: 4
   delay: 30
@@ -774,7 +774,7 @@
     - noodlin
 
 - name: noodle for OpenShift Installer tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }}"
   register: ospinstaller
   retries: 4
   delay: 30
