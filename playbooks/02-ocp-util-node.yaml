@@ -26,6 +26,42 @@
   become: true
   gather_facts: true
   tasks:
+  - name: Verify that correct subscription-manager variables are defined
+    vars:
+      msg: |
+        When using username/password for subscribing a system, a pool must be
+        specified. Determine the proper subscription product name to use and
+        populate the redhat_subscription_pool_regex entry in
+        inventory/group_vars/all/my_vars.yaml with a suitable regex string to
+        match. For example: ^Red Hat Enterprise Linux$
+    debug:
+      msg: "{{ msg.split('\n') }}"
+    failed_when:
+      - redhat_subscription_pool_regex is match("\^\$")
+    when:
+      - ansible_distribution == 'RedHat'
+      - redhat_subscription_username is defined
+      - redhat_subscription_password is defined
+      - redhat_subscription_pool_regex is match("\^\$")
+
+- hosts: util
+  become: true
+  gather_facts: true
+  tasks:
+  - name: "RHN registration with subscription pool defined - RHEL7"
+    import_role:
+      name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_enable_explicit_repos_only: "yes"
+      redhat_subscription_disable_repos: []
+      redhat_subscription_enable_repos: []
+    register: registration_result
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    when:
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+      - redhat_subscription_pool_regex is not match("\^\$")
+      - ocp_vms_util_node
+
   - name: "RHN registration and repo enablement - RHEL7"
     import_role:
       name: devnullcake.redhat-subscription
@@ -35,13 +71,15 @@
       redhat_subscription_enable_repos:
         - rhel-7-server-rpms
         - rhel-7-server-extras-rpms
+        - rhel-7-server-ansible-2.8-rpms
     register: registration_result
     failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
       - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+      - redhat_subscription_pool_regex is match("\^\$")
       - ocp_vms_util_node
 
-  - name: "RHN registration and repo enablement - RHEL8"
+  - name: "RHN registration with subscription pool defined - RHEL8"
     import_role:
       name: devnullcake.redhat-subscription
     vars:
@@ -52,6 +90,24 @@
     failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
       - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
+      - redhat_subscription_pool_regex is not match("\^\$")
+      - ocp_vms_util_node
+
+  - name: "RHN registration with repos enabled - RHEL8"
+    import_role:
+      name: devnullcake.redhat-subscription
+    vars:
+      redhat_subscription_enable_explicit_repos_only: "yes"
+      redhat_subscription_disable_repos: []
+      redhat_subscription_enable_repos:
+        - rhel-8-for-x86_64-baseos-rpms
+        - rhel-8-for-x86_64-appstream-rpms
+        - ansible-2.9-for-rhel-8-x86_64-rpms
+    register: registration_result
+    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    when:
+      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
+      - redhat_subscription_pool_regex is match("\^\$")
       - ocp_vms_util_node
 
   - name: "Configure utility node"
