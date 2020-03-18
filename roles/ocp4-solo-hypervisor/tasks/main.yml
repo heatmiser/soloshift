@@ -119,6 +119,11 @@
       command: define
       xml: '{{ lookup("file", "/tmp/virt-net-openshift-private.xml") }}'
 
+  - name: Set private provisioning network to start at system boot
+    virt_net:
+      name: "{{ ocp_vms_openshift_subdomain }}-private"
+      autostart: yes
+
   - name: "Add private provisioning network bridge {{ ocp_vms_openshift_subdomain }}-private to firewalld dmz zone" 
     firewalld:
       zone: dmz
