@@ -160,6 +160,8 @@
     src: dhcp/dhcpd.conf.j2
     dest: /etc/dhcp/dhcpd.conf
   when: not staticips
+  tags:
+  - dhcpd_conf
 
 - name: Write out named conf file
   template:
