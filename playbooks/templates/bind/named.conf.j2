@@ -87,11 +87,13 @@ zone "." IN {
 zone "{{ dns.domain }}" IN {
 	type	master;
 	file	"primary/master.{{ dns.domain }}.db";
+	allow-update { key "rndc-key"; };
 };
 
 zone "{{ util.ipaddr.split('.')[2] }}.{{ util.ipaddr.split('.')[1] }}.{{ util.ipaddr.split('.')[0] }}.in-addr.arpa" IN {
 	type	master;
 	file	"primary/reverse.{{ dns.domain }}.db";
+	allow-update { key "rndc-key"; };
 };
 
 include "/etc/named.rfc1912.zones";
@@ -99,5 +101,5 @@ include "/etc/named.root.key";
 
 include "/etc/rndc.key";
 controls {
-            inet 127.0.0.1 allow { localhost; } keys { "rndc-key"; };
+            inet 127.0.0.1 port 953 allow { localhost; } keys { "rndc-key"; };
 };
