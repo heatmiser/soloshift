@@ -212,26 +212,37 @@
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
 
-- name: Config haproxy to start after DNS is available - Fedora
-  replace:
+- name: Implement network-online.service for haproxy service startup dependency
+  copy:
+    src: ../files/network-online.service
+    dest: /etc/systemd/system/network-online.service
+
+- name: Modify haproxy service to require network-online service
+  lineinfile:
     path: /usr/lib/systemd/system/haproxy.service
-    replace: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && /usr/sbin/haproxy"
-    regexp: '^ExecStartPre=/usr/sbin/haproxy'
-  when:
-    - ansible_distribution == 'Fedora'
+    insertafter: '^Description='
+    line: Requires=network-online.service
+
+- name: Modify haproxy service to start after network-online service is ready
+  lineinfile:
+    path: /usr/lib/systemd/system/haproxy.service
+    regexp: 'After=network.target'
+    line: After=network-online.service
   tags:
   - haproxyservicecfg
 
-- name: Config haproxy to start after DNS is available - RHEL/CentOS
-  lineinfile:
-    path: /usr/lib/systemd/system/haproxy.service
-    insertbefore: "ExecStart="
-    line: "ExecStartPre=/bin/bash -c 'until host api.{{ dns.clusterid }}.{{ dns.domain }}; do sleep 1; done' && "
-    firstmatch: yes
-  when:
-    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
-  tags:
-  - haproxyservicecfg
+- name: Reload systemctl daemon
+  shell: "systemctl daemon-reload"
+
+- name: Start and enable network-online service
+  service:
+    name: network-online.service
+    state: started
+    enabled: yes
+
+- name: Best effort SELinux repair - Apache
+  shell: "restorecon -vR /var/www/html || true"
+  when: not matchbox
 
 - name: Copy httpd conf file
   copy:
@@ -755,7 +766,7 @@
     mode: 0555
 
 - name: noodle for OC client tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }}"
   register: occlient
   retries: 4
   delay: 30
@@ -776,7 +787,7 @@
     - noodlin
 
 - name: noodle for OpenShift Installer tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }}"
   register: ospinstaller
   retries: 4
   delay: 30
