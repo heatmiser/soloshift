@@ -100,9 +100,9 @@
     when:
       - ansible_distribution == 'Fedora' and ansible_distribution_major_version == '31'
 
-  - name: create firewalld rich rule, libvirt default reject
+  - name: create firewalld rich rule, libvirt allowed from 10.88.0.0/16
     firewalld:
-      rich_rule: rule service name="libvirt" reject
+      rich_rule: rule family="ipv4" source address="10.88.0.0/16" service name="libvirt" accept
       permanent: yes
       state: enabled
     when:
