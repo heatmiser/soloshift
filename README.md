@@ -33,11 +33,18 @@ As root, or via sudo:
 
 > **NOTE**: Leave out the --password switch if you want to enter your password interactively and not record password in shell history.
 
+> **NOTE**: Utilizing username/password will require a subsequent step to attach a subscription, see Red Hat documentation for requisite procedure if needed. For example:
+
+`(hypervisor)# subscription-manager attach --pool=<pool_id_string>`
+
 - ...or Red Hat organization ID and activation key:
 
 `(hypervisor)# subscription-manager register --activationkey="your_key_name" --org="your_org_id#"`
 
 ...then:
+
+| RHEL 7.x hypervisors |
+|:-:|
 
 `(hypervisor)# subscription-manager repos --disable="*"`
 
@@ -46,6 +53,11 @@ As root, or via sudo:
 `(hypervisor)# subscription-manager repos --enable="rhel-7-server-extras-rpms"`
 
 `(hypervisor)# subscription-manager repos --enable="rhel-7-server-ansible-2.8-rpms"`
+
+| RHEL 8.x hypervisors |
+|:-:|
+
+`(hypervisor)# subscription-manager repos --enable ansible-2.9-for-rhel-8-x86_64-rpms`
 
 2) CentOS hypervisors only
 
