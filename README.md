@@ -25,8 +25,6 @@ For Fedora hypervisors, skip to step 3.
 
 1) If you're using RHEL for the base hypervisor OS, then you'll need to register the system and configure the system subscription first.
 
-> **NOTE**: While RHEL 8.1+ is supported for the guest VMs, currently only RHEL 7.x has been tested for the hypervisor system and the following instructions reflect this.
-
 As root, or via sudo:
 
 - Red Hat username and password
