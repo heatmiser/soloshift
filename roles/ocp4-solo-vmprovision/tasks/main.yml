@@ -533,9 +533,9 @@
   tags:
     - template
 
-- name: Create the oc4upi directory
+- name: "Create the {{ ocp_vms_distribution }}4upi directory"
   file:
-    path: "{{ ansible_playbook_pwd }}/ocp4upi"
+    path: "{{ ansible_playbook_pwd }}/{{ ocp_vms_distribution }}4upi"
     state: directory
     mode: 0700
     owner: "{{ ansible_local_user }}"
@@ -590,7 +590,7 @@
 - name: Create OpenShift UPI install-config.yaml
   template:
     src: install-config.yaml.intermediate.j2
-    dest: "{{ ansible_playbook_pwd }}/ocp4upi/install-config.yaml"
+    dest: "{{ ansible_playbook_pwd }}/{{ ocp_vms_distribution }}4upi/install-config.yaml"
     mode: 0660
     owner: "{{ ansible_local_user }}"
     group: "{{ ansible_local_group }}"

@@ -1,5 +1,5 @@
 ---
-# Setup OCP4 Util Node
+# Setup OCP/OKD4 Util Node
 - name: current local user
   run_once: True
   set_fact:
@@ -24,6 +24,20 @@
   tags:
     - local_user
 
+- name: set Red Hat Core OS name prefix (for task output convenience)
+  run_once: True
+  set_fact:
+    coreosprefix: "rh"
+  when: ocp_vms_distribution == 'ocp'
+  tags:
+  - noodlin
+
+- name: set Fedora Core OS name prefix (for task output convenience)
+  run_once: True
+  set_fact:
+    coreosprefix: "fed"
+  when: ocp_vms_distribution == 'okd'
+
 - name: Package installation on RHEL/CentOS
   block:
     - name: Install base packages
@@ -39,6 +53,7 @@
           - firewalld
           - podman
           - wget
+          - xz
         state: present
       tags:
         - util_pkgs
@@ -110,6 +125,7 @@
           - python3-firewall
           - podman
           - wget
+          - xz
         state: present
       tags:
         - util_pkgs
@@ -311,43 +327,59 @@
     - /var/lib/matchbox/install
   when: matchbox
 
-- name: noodle for rhcos installer initramfs file
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs"
-  register: rhcosinitramfs
-  retries: 4
-  delay: 30
-  until: rhcosinitramfs.rc == 0
-  tags:
-    - noodlin
+- block:
+  - name: noodle for rhcos installer initramfs file
+    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs"
+    register: rhcosinitramfs
+    retries: 4
+    delay: 30
+    until: rhcosinitramfs.rc == 0
+    tags:
+      - noodlin
 
-- name: Set rhcos installer initramfs file name as fact
+  - name: Set rhcos installer initramfs file name as fact
+    set_fact:
+      rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
+    tags:
+      - noodlin
+
+  when: ocp_vms_distribution == 'ocp'
+
+- name: Set fedcos installer initramfs file name as fact
   set_fact:
-    rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
-  tags:
-    - noodlin
+    rhcosinitramfsfile: "fedora-coreos-{{ okd_fedcos_release }}-live-initramfs.x86_64.img"
+  when: ocp_vms_distribution == 'okd'
 
-- name: What is the rhcos installer initramfs file name?
+- name: "What is the {{ coreosprefix }}cos installer initramfs file name?"
   debug:
     var: rhcosinitramfsfile
   tags:
     - noodlin
 
-- name: noodle for rhcos installer kernel file
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel"
-  register: rhcoskernel
-  retries: 4
-  delay: 30
-  until: rhcoskernel.rc == 0
-  tags:
-    - noodlin
+- block:
+  - name: noodle for rhcos installer kernel file
+    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel"
+    register: rhcoskernel
+    retries: 4
+    delay: 30
+    until: rhcoskernel.rc == 0
+    tags:
+      - noodlin
 
-- name: Set rhcos installer kernel file name as fact
+  - name: Set rhcos installer kernel file name as fact
+    set_fact:
+      rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
+    tags:
+      - noodlin
+
+  when: ocp_vms_distribution == 'ocp'
+
+- name: Set fedcos installer kernel file name as fact
   set_fact:
-    rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
-  tags:
-    - noodlin
+    rhcoskernelfile: "fedora-coreos-{{ okd_fedcos_release }}-live-kernel-x86_64"
+  when: ocp_vms_distribution == 'okd'
 
-- name: What is the rhcos installer kernel file name?
+- name: "What is the {{ coreosprefix }}cos installer kernel file name?"
   debug: 
     var: rhcoskernelfile
   tags:
@@ -363,7 +395,7 @@
   - name: Set rhcos metal bios file name as fact
     set_fact:
       rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
-  when: ocp_vms_openshift_release is version('4.2', '<=')
+  when: ocp_vms_openshift_release is version('4.2', '<=') and ocp_vms_distribution == 'ocp'
   tags:
     - noodlin
 
@@ -377,17 +409,32 @@
   - name: Set rhcos metal bios file name as fact
     set_fact:
       rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
-  when: ocp_vms_openshift_release is version('4.3', '>=')
+  when: ocp_vms_openshift_release is version('4.3', '>=') and ocp_vms_distribution == 'ocp'
   tags:
     - noodlin
 
-- name: What is the rhcos metal bios file name?
+- name: Set fedcos metal bios file name as fact
+  set_fact:
+    rhcosmetalbiosfile: "fedora-coreos-{{ okd_fedcos_release }}-metal.x86_64.raw.xz"
+  when: ocp_vms_distribution == 'okd'
+
+- name: "What is the {{ coreosprefix }}cos metal bios file name?"
   debug: 
     var: rhcosmetalbiosfile
   tags:
     - noodlin
 
-- name: check if rhcos installer initramfs, kernel, and metal bios files are present
+- name: Set fedcos metal bios sig file name as fact
+  set_fact:
+    rhcosmetalbiossigfile: "fedora-coreos-{{ okd_fedcos_release }}-metal.x86_64.raw.xz.sig"
+  when: ocp_vms_distribution == 'okd'
+
+- name: "What is the {{ coreosprefix }}cos metal bios sig file name?"
+  debug: 
+    var: rhcosmetalbiossigfile
+  when: ocp_vms_distribution == 'okd'
+
+- name: "OCP - check if {{ coreosprefix }}cos installer initramfs, kernel, and metal bios files are present"
   stat: 
     path: /var/lib/matchbox/assets/{{ item }}
   loop:
@@ -396,6 +443,21 @@
     - "{{ rhcosmetalbiosfile }}"
 # Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
   register: rhcos_mb_assets
+  when: ocp_vms_distribution == 'ocp'
+  tags:
+    - rhcos_mb_asset_files
+
+- name: "OKD - check if {{ coreosprefix }}cos installer initramfs, kernel, metal bios, and metal bios sig files are present"
+  stat: 
+    path: /var/lib/matchbox/assets/{{ item }}
+  loop:
+    - "{{ rhcosinitramfsfile }}"
+    - "{{ rhcoskernelfile }}"
+    - "{{ rhcosmetalbiosfile }}"
+    - "{{ rhcosmetalbiossigfile }}"
+# Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
+  register: rhcos_mb_assets
+  when: ocp_vms_distribution == 'okd'
   tags:
     - rhcos_mb_asset_files
 
@@ -417,15 +479,29 @@
   tags:
     - rhcos_mb_asset_files
 
-- name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox
+- name: "Download {{ coreosprefix }}cos installer initramfs, kernel, and metal bios files for matchbox"
   get_url:
     url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ item }}
     dest: /var/lib/matchbox/assets
     mode: '0440'
   loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
-  when: matchbox
+  when: matchbox and ocp_vms_distribution == 'ocp'
   tags:
     - rhcos_mb_asset_files
+
+- name: "Download {{ coreosprefix }}cos installer initramfs, kernel, and metal bios, and metal bios sig files for matchbox"
+  get_url:
+    url: https://builds.coreos.fedoraproject.org/prod/streams/{{ okd_fedcos_stream }}/builds/{{ okd_fedcos_release }}/x86_64/{{ item }}
+    dest: /var/lib/matchbox/assets
+    mode: '0440'
+  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+  when: matchbox and ocp_vms_distribution == 'okd'
+  tags:
+    - rhcos_mb_asset_files
+
+#- name: Decompress fedcos metal bios file
+#  script: "xz --decompress /var/lib/matchbox/assets/fedora-coreos-{{ okd_fedcos_release }}-metal.x86_64.raw.xz"
+#  when: matchbox and ocp_vms_distribution == 'okd'
 
 - name: Create matchbox profiles
   template:
@@ -496,7 +572,7 @@
     mode: 0555
   when: not matchbox
 
-- name: Symlink bios.raw.gz when using matchbox
+- name: Symlink bios.raw.gz when using matchbox - OCP
   file:
     src: /var/lib/matchbox/assets/{{ rhcosmetalbiosfile }}
     dest: /var/lib/matchbox/install/bios.raw.gz
@@ -506,7 +582,31 @@
     force: true
   when:
     - not staticips
-    - matchbox
+    - matchbox and ocp_vms_distribution == 'ocp'
+
+- name: Symlink bios.raw.xz when using matchbox - OKD
+  file:
+    src: /var/lib/matchbox/assets/{{ rhcosmetalbiosfile }}
+    dest: /var/lib/matchbox/install/bios.raw.xz
+    owner: root
+    group: root
+    state: link
+    force: true
+  when:
+    - not staticips
+    - matchbox and ocp_vms_distribution == 'okd'
+
+- name: Symlink bios.raw.xz.sig when using matchbox - OKD
+  file:
+    src: /var/lib/matchbox/assets/{{ rhcosmetalbiossigfile }}
+    dest: /var/lib/matchbox/install/bios.raw.xz.sig
+    owner: root
+    group: root
+    state: link
+    force: true
+  when:
+    - not staticips
+    - matchbox and ocp_vms_distribution == 'okd'
 
 - name: Start service firewalld, if not started
   service:
@@ -533,6 +633,14 @@
     - 22623/udp
     - 9000/tcp
     - 69/udp
+
+- name: SELinux - set domain_can_mmap_files flag to on and persistent across reboots
+  seboolean:
+    name: domain_can_mmap_files
+    state: yes
+    persistent: yes
+  when:
+    - (ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS') and ansible_distribution_major_version|int >= 8
 
 - name: Best effort SELinux repair - DNS
   shell: "restorecon -vR /var/named || true"
@@ -729,28 +837,28 @@
     - tftp
   when: not staticips
 
-- name: Create the oc4upi directory
+- name: "Create the {{ ocp_vms_distribution }}4upi directory"
   file:
-    path: "{{ ansible_user_dir }}/ocp4upi"
+    path: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi"
     state: directory
     mode: 0700
   tags:
     - install_config
 
-- name: Copy install-config.yaml to oc4upi directory
+- name: "Copy install-config.yaml to {{ ocp_vms_distribution }}4upi directory"
   copy:
-    src: "../ocp4upi/install-config.yaml"
-    dest: "{{ ansible_user_dir }}/ocp4upi/install-config.yaml"
+    src: "../{{ ocp_vms_distribution }}4upi/install-config.yaml"
+    dest: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/install-config.yaml"
     owner: root
     group: root
     mode: 0660
   tags:
     - install_config
 
-- name: Include backup copy of install-config.yaml in oc4upi directory
+- name: "Include backup copy of install-config.yaml in {{ ocp_vms_distribution }}4upi directory"
   copy:
-    src: "../ocp4upi/install-config.yaml"
-    dest: "{{ ansible_user_dir }}/ocp4upi/install-config.yaml.bak"
+    src: "../{{ ocp_vms_distribution }}4upi/install-config.yaml"
+    dest: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/install-config.yaml.bak"
     owner: root
     group: root
     mode: 0660
@@ -765,85 +873,126 @@
     group: root
     mode: 0555
 
-- name: noodle for OC client tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }}"
-  register: occlient
-  retries: 4
-  delay: 30
-  until: occlient.rc == 0
-  tags:
-    - noodlin
+- block:
+  - name: noodle for OC client tarball
+    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }}"
+    register: occlient
+    retries: 4
+    delay: 30
+    until: occlient.rc == 0
+    tags:
+      - noodlin
 
-- name: Set OC client tarball file name as fact
-  set_fact:
-    occlientfile: "{{ occlient.stdout | trim }}"
-  tags:
-    - noodlin
+  - name: Set OC client tarball file name as fact
+    set_fact:
+      occlientfile: "{{ occlient.stdout | trim }}"
+    tags:
+      - noodlin
 
-- name: What is the OC client tarball file name?
-  debug: 
-    var: occlientfile
-  tags:
-    - noodlin
+  - name: What is the OC client tarball file name?
+    debug: 
+      var: occlientfile
+    tags:
+      - noodlin
 
-- name: noodle for OpenShift Installer tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }}"
-  register: ospinstaller
-  retries: 4
-  delay: 30
-  until: ospinstaller.rc == 0
-  tags:
-    - noodlin
+  - name: noodle for OpenShift Installer tarball
+    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }}"
+    register: ospinstaller
+    retries: 4
+    delay: 30
+    until: ospinstaller.rc == 0
+    tags:
+      - noodlin
 
-- name: Set OpenShift Installer tarball file name as fact
-  set_fact:
-    ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
-  tags:
-    - noodlin
+  - name: Set OpenShift Installer tarball file name as fact
+    set_fact:
+      ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
+    tags:
+      - noodlin
 
-- name: What is the OpenShift Installer tarball file name?
-  debug: 
-    var: ospinstallerfile
-  tags:
-    - noodlin
+  - name: What is the OpenShift Installer tarball file name?
+    debug: 
+      var: ospinstallerfile
+    tags:
+      - noodlin
 
-- name: check if OC client tarball and/or OpenShift Installer tarball are present
-  stat: 
-    path: /usr/local/src/{{ item }}
-  loop:
-    - "{{ occlientfile }}"
-    - "{{ ospinstallerfile }}"
-  register: oc_client_assets
-  tags:
-    - oc_client_asset_files
+  - name: check if OC client tarball and/or OpenShift Installer tarball are present
+    stat: 
+      path: /usr/local/src/{{ item }}
+    loop:
+      - "{{ occlientfile }}"
+      - "{{ ospinstallerfile }}"
+    register: oc_client_assets
+    tags:
+      - oc_client_asset_files
 
-- name: Download OC client tarball and/or OpenShift Installer tarball
-  get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/{{ item }}
-    dest: /usr/local/src
-    mode: '0440'
-  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
-  when: ocp_vms_openshift_release != "pre-release"
-  tags:
-    - oc_client_asset_files
+  - name: Download OC client tarball and/or OpenShift Installer tarball
+    get_url:
+      url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/{{ item }}
+      dest: /usr/local/src
+      mode: '0440'
+    loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+    when: ocp_vms_openshift_release != "pre-release"
+    tags:
+      - oc_client_asset_files
 
-- name: check again if OC client tarball and/or OpenShift Installer tarball are present
-  stat: 
-    path: /usr/local/src/{{ item }}
-  loop:
-    - "{{ occlientfile }}"
-    - "{{ ospinstallerfile }}"
-  register: oc_client_assets2
-  tags:
-    - oc_client_asset_files
+  - name: check again if OC client tarball and/or OpenShift Installer tarball are present
+    stat: 
+      path: /usr/local/src/{{ item }}
+    loop:
+      - "{{ occlientfile }}"
+      - "{{ ospinstallerfile }}"
+    register: oc_client_assets2
+    tags:
+      - oc_client_asset_files
 
-- name: Unarchiving tarballs
-  unarchive:
-    src: /usr/local/src/{{ item }}
-    dest: /usr/local/bin
-    remote_src: yes
-  loop: "{{ oc_client_assets2.results | selectattr('stat.exists') | map(attribute='item') | list }}"
-  when: ocp_vms_openshift_release != "pre-release"
+  - name: Unarchiving tarballs
+    unarchive:
+      src: /usr/local/src/{{ item }}
+      dest: /usr/local/bin
+      remote_src: yes
+    loop: "{{ oc_client_assets2.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+    when: ocp_vms_openshift_release != "pre-release"
+
+  when: ocp_vms_distribution == 'ocp'
+
+- block:
+  - name: OKD - Download older 4.4.x OC client tarball
+    get_url:
+      url: https://github.com/openshift/okd/releases/download/4.4.0-0.okd-2020-01-28-022517/openshift-client-linux-4.4.0-0.okd-2020-01-28-022517.tar.gz
+      dest: /usr/local/src
+      mode: '0440'
+    tags:
+      - oc_client_asset_files
+
+  - name: OKD - Unarchiving 4.4.x OC client tarball
+    unarchive:
+      src: /usr/local/src/openshift-client-linux-4.4.0-0.okd-2020-01-28-022517.tar.gz
+      dest: /usr/local/bin
+      remote_src: yes
+    tags:
+      - oc_client_asset_files
+
+  when: ocp_vms_distribution == 'okd'
+
+- block:
+  - name: "OKD - use existing oc to pull {{ ocp_vms_openshift_release }} release oc and install tarballs"
+    command: "oc adm release extract --tools registry.svc.ci.openshift.org/origin/release:{{ ocp_vms_openshift_release }}"
+    args:
+      chdir: /tmp
+
+  - name: Identify oc client and openshift-install tarballs
+    find: paths="/tmp" patterns="openshift-*-linux*.tar.gz"
+    register: identify_tarballs_result
+
+  - name: Unpack oc client and openshift-install tarballs
+    unarchive:
+      src: "{{ item.path }}"
+      dest: /usr/local/bin
+      remote_src: yes
+    with_items: "{{ identify_tarballs_result.files }}"
+
+  when: ocp_vms_distribution == 'okd'
 
 - name: Removing files that are not needed
   file:
@@ -867,21 +1016,29 @@
     mode: 0555
   when: ocp_util_filetranspiler
 
+- name: Install jq utility
+  get_url:
+    url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+    dest: /usr/local/bin/jq
+    mode: '0755'
+  tags:
+    - install_jq_utility
+
 # Generate manifests, as we may need to modify prior to generating ignition configs in the future...
 - name: Execute openshift-install to create manifests
-  command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create manifests"
+  command: "openshift-install --dir={{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi create manifests"
 
 - name: Ensure that Pods will not be scheduled on the control plane machine(s)
   lineinfile:
-    path: "{{ ansible_user_dir }}/ocp4upi/manifests/cluster-scheduler-02-config.yml"
+    path: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/manifests/cluster-scheduler-02-config.yml"
     regexp: '^  mastersSchedulable'
     line: '  mastersSchedulable: false'
   tags:
     - cluster_scheduler
-  when: ocp_vms_openshift_release == "4.2"
+  when: ocp_vms_openshift_release == "4.2" or ocp_vms_distribution == 'okd'
 
 - name: Execute openshift-install to create ignition-configs
-  command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create ignition-configs"
+  command: "openshift-install --dir={{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi create ignition-configs"
 
 - name: Pause for 5 seconds to ensure ignition-configs are available
   pause:
@@ -889,7 +1046,7 @@
 
 - name: Copy ignition configs into the matchbox ignition directory
   copy:
-    src: "{{ ansible_user_dir }}/ocp4upi/{{ item }}"
+    src: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/{{ item }}"
     dest: /var/lib/matchbox/ignition/
     owner: matchbox
     group: matchbox
@@ -912,7 +1069,7 @@
 
 - name: Copy kubeconfig to .kube directory
   copy:
-    src: "{{ ansible_user_dir }}/ocp4upi/auth/kubeconfig"
+    src: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/auth/kubeconfig"
     dest: "{{ ansible_user_dir }}/.kube/config"
     owner: root
     group: root

@@ -3,7 +3,7 @@ baseDomain: {{ ocp_vms_openshift_rootdomain }}
 compute:
 - hyperthreading: Enabled
   name: worker
-  replicas: {{ ocp_vms_worker_count }}
+  replicas: 0
 controlPlane:
   hyperthreading: Enabled
   name: master
@@ -19,6 +19,11 @@ networking:
   - 172.30.0.0/16
 platform:
   none: {}{% raw %}
+{% if ocp_vms_enable_fips %}
+fips: true
+{% else %}
+fips: false
+{% endif %}
 pullSecret: '{{ pull_secret_stdout }}'
 {% endraw %}
 sshKey: '{{ ocp_vms_ssh_pubkey }}'

@@ -23,6 +23,37 @@
     pause:
       seconds: 60
 
+- hosts: util
+  become: true
+  gather_facts: true
+  tasks:
+  - name: Execute openshift-install to get to bootstrap completion...
+    command: "openshift-install --dir={{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi wait-for bootstrap-complete --log-level debug"
+
+  - name: >
+      Wait until the string "It is now safe to remove the bootstrap resources" is in the file .openshift_install.log before continuing...
+    wait_for:
+      path: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/.openshift_install.log"
+      search_regex: It\ is\ now\ safe\ to\ remove\ the\ bootstrap\ resources
+      timeout: 6000
+      sleep: 10
+
+  - name: Pause for 60 seconds to allow for bootstrap removal
+    pause:
+      seconds: 60
+  tags:
+    - ocp_install_log_wait
+
+- hosts: hypervisor
+  tasks:
+  - name: start infra vm(s)
+    virt:
+      name: "{{ dns.clusterid }}.{{ item.name }}"
+      state: running
+    with_items:
+    - "{{ infras }}"
+    when: infras | length > 0
+
 - hosts: hypervisor
   tasks:
   - name: start worker vm(s)
@@ -36,46 +67,19 @@
     pause:
       seconds: 60
 
-- hosts: hypervisor
-  tasks:
-  - name: start infra vm(s)
-    virt:
-      name: "{{ dns.clusterid }}.{{ item.name }}"
-      state: running
-    with_items:
-    - "{{ infras }}"
-    when: infras | length > 0
-
-- hosts: util
-  become: true
-  gather_facts: true
-  tasks:
-  - name: Execute openshift-install to get to bootstrap completion...
-    command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi wait-for bootstrap-complete --log-level debug"
-
-  - name: >
-      Wait until the string "It is now safe to remove the bootstrap resources" is in the file .openshift_install.log before continuing...
-    wait_for:
-      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: It\ is\ now\ safe\ to\ remove\ the\ bootstrap\ resources
-      timeout: 6000
-      sleep: 10
-  tags:
-    - ocp_install_log_wait
-
 - hosts: util
   become: true
   gather_facts: true
   tasks:
   - name: Execute openshift-install again to achieve 100% completion...
-    command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi wait-for install-complete --log-level debug"
+    command: "openshift-install --dir={{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi wait-for install-complete --log-level debug"
     async: 6000
     poll: 0
 
   - name: >
       Wait until the string "Working towards 4.x.y: 99% complete" is in the file .openshift_install.log before continuing...
     wait_for:
-      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+      path: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/.openshift_install.log"
       search_regex: Working\ towards\ 4\.(.*)\ 99\%\ complete
       timeout: 2000
       sleep: 10
@@ -86,7 +90,7 @@
   - name: >
       Wait until the string "Install complete!" is in the file .openshift_install.log before continuing...
     wait_for:
-      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+      path: "{{ ansible_user_dir }}/{{ ocp_vms_distribution }}4upi/.openshift_install.log"
       search_regex: Install complete\!
       timeout: 2000
       sleep: 10

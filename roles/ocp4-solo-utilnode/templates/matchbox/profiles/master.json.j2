@@ -8,6 +8,13 @@
 "/assets/{{ rhcosinitramfsfile }}"
 ],
 "args": [
+{% if ocp_vms_distribution == 'okd' %}
+"mitigations=auto,nosmt",
+"systemd.unified_cgroup_hierarchy=0",
+"coreos.liveiso=fedora-coreos-{{ okd_fedcos_release }}",
+"ignition.firstboot",
+"ignition.platform.id=metal",
+{% endif %}
 "ip=dhcp",
 "rd.neednet=1",
 "console=tty0",

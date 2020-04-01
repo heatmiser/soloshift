@@ -268,5 +268,5 @@
     - "{{ ansible_playbook_pwd }}/inventory/{{ ocp_vms_openshift_subdomain }}_vms"
     - "{{ playbook_dir }}/install-config.yaml.intermediate.j2"
     - "{{ ansible_playbook_pwd }}/inventory/group_vars/all/vars.yaml"
-    - "{{ ansible_playbook_pwd }}/ocp4upi"
+    - "{{ ansible_playbook_pwd }}/{{ ocp_vms_distribution }}4upi"
     - /tmp/vm_img_path.ini
