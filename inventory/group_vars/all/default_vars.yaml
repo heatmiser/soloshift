@@ -20,3 +20,4 @@ ocp_vms_worker_count: 1
 ocp_vms_openshift_pullsecret_file: pull-secret.txt
 ocp_vms_util_node: True
 ocp_vms_libvirt_integration: False
+ocp_vms_enable_fips: False
