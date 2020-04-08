@@ -19,7 +19,7 @@ ocp_vms_bootstrap_cpus: 2
 ocp_vms_bootstrap_memory: 4096
 ocp_vms_master_count: 3
 ocp_vms_master_cpus: 4
-ocp_vms_master_memory: 8192
+ocp_vms_master_memory: 12288
 ocp_vms_infra_count: 2
 ocp_vms_infra_cpus: 4
 ocp_vms_infra_memory: 4096
@@ -58,7 +58,7 @@ ocp_vms_bootstrap_node:
 ocp_vms_master_nodes:
   - name: master
     size: 120
-    ram: 8192
+    ram: 12288
 ocp_vms_infra_nodes:
   - name: infra
     size: 120
