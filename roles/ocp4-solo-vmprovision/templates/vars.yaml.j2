@@ -39,12 +39,16 @@ infras:
 {% else %}
 infras: []
 {% endif %}
+{% if worker_dict|length > 0 %}
 workers:
 {% for host, macaddr in worker_dict.items() %}
   - name: "{{ host }}"
     ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(29 +loop.index) }}"
     macaddr: "{{ macaddr }}"
 {% endfor %}
+{% else %}
+workers: []
+{% endif %}
 storage:
   name: "{{ ocp_vms_storage_name }}"
   ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(7) }}"

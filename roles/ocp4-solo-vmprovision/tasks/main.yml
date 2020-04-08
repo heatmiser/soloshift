@@ -364,59 +364,6 @@
   tags:
     - ocp_vms_cluster
 
-- name: Create OpenShift infrastructure virtual machines
-  command: >
-    virt-install
-    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }}
-    --cpu=host --vcpus {{ ocp_vms_infra_cpus }}
-    --memory {{ ocp_vms_infra_nodes[0].ram }}
-    {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
-    --os-variant rhel8.0
-    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
-    --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_infra_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_infra_nodes[0].size }}
-    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
-    --boot hd,network,menu=on --noreboot
-    {% if ocp_vms_console %}
-    --console pty,target_type=virtio
-    {% endif %}
-    {% if ocp_vms_no_auto_vm_console %}
-    --noautoconsole
-    {% endif %}
-    {% if ocp_vms_storage_overcommit %}
-    --check disk_size=off
-    {% endif %}
-  with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
-  when: ocp_vms_infra_count > 0
-  tags:
-    - ocp_vms_cluster
-
-- name: Create OpenShift worker virtual machines
-  command: >
-    virt-install
-    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }}
-    --cpu=host --vcpus {{ ocp_vms_worker_cpus }}
-    --memory {{ ocp_vms_worker_nodes[0].ram }}
-    {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
-    --os-variant rhel8.0
-    {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
-    --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_worker_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_worker_nodes[0].size }}
-    --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
-    --boot hd,network,menu=on --noreboot
-    {% if ocp_vms_console %}
-    --console pty,target_type=virtio
-    {% endif %}
-    {% if ocp_vms_no_auto_vm_console %}
-    --noautoconsole
-    {% endif %}
-    {% if ocp_vms_storage_overcommit %}
-    --check disk_size=off
-    {% endif %}
-  with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
-  tags:
-    - ocp_vms_cluster
-
 - name: record bootstrap VM mac address
   shell: >
     itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ item.name }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
@@ -441,38 +388,6 @@
   tags:
     - vm_mac_dict
 
-- name: start infra VM mac address ini section
-  shell: >
-    echo "" >> /tmp/vm_mac_addrs.ini;
-    echo "[infras]" >> /tmp/vm_mac_addrs.ini
-  when: ocp_vms_infra_count > 0
-  tags:
-    - vm_mac_dict
-
-- name: record infra VM mac address
-  shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_infra_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
-    echo "{{ ocp_vms_infra_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
-  with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
-  when: ocp_vms_infra_count > 0
-  tags:
-    - vm_mac_dict
-
-- name: start worker VM mac address ini section
-  shell: >
-    echo "" >> /tmp/vm_mac_addrs.ini;
-    echo "[workers]" >> /tmp/vm_mac_addrs.ini
-  tags:
-    - vm_mac_dict
-
-- name: record worker VM mac address
-  shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
-    echo "{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
-  with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
-  tags:
-    - vm_mac_dict
-
 - name: creating empty master dict
   set_fact:
     master_dict: {}
@@ -491,6 +406,22 @@
   tags:
     - vm_mac_dict
 
+- name: OpenShift infrastructure nodes
+  import_role: 
+    name: ocp4-solo-vmprovision
+    tasks_from: infra.yml
+  when: ocp_vms_infra_count > 0
+  tags:
+    - ocp_vms_cluster
+
+- name: OpenShift worker nodes
+  import_role: 
+    name: ocp4-solo-vmprovision
+    tasks_from: worker.yml
+  when: ocp_vms_worker_count > 0
+  tags:
+    - ocp_vms_cluster
+
 - name: "Append dict seq - masters"
   vars:
     master_vm: "{{ ocp_vms_master_nodes[0].name }}{{ item }}"
@@ -498,27 +429,6 @@
   set_fact:
     master_dict: "{{ master_dict | default({}) | combine( { master_vm : master_mac } ) }}"
   with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
-  tags:
-    - vm_mac_dict
-
-- name: "Append dict seq - infras"
-  vars:
-    infra_vm: "{{ ocp_vms_infra_nodes[0].name }}{{ item }}"
-    infra_mac: "{{ lookup('ini', '{{ ocp_vms_infra_nodes[0].name }}{{ item }}.mac section=infras file=/tmp/vm_mac_addrs.ini') }}"
-  set_fact:
-    infra_dict: "{{ infra_dict | default({}) | combine( { infra_vm : infra_mac } ) }}"
-  with_sequence: start=0 end={{ ocp_vms_infra_count -1 }} format=%02x
-  when: ocp_vms_infra_count > 0
-  tags:
-    - vm_mac_dict
-
-- name: "Append dict seq - workers"
-  vars:
-    worker_vm: "{{ ocp_vms_worker_nodes[0].name }}{{ item }}"
-    worker_mac: "{{ lookup('ini', '{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac section=workers file=/tmp/vm_mac_addrs.ini') }}"
-  set_fact:
-    worker_dict: "{{ worker_dict | default({}) | combine( { worker_vm : worker_mac } ) }}"
-  with_sequence: start=0 end={{ ocp_vms_worker_count -1 }} format=%02x
   tags:
     - vm_mac_dict
 

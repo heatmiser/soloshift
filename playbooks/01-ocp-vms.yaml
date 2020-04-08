@@ -1,7 +1,15 @@
 ---
 - hosts: hypervisor
   become: true
-  tasks:
+  vars:
+    # We need to utilize a separate infra and worker node count variable in order to
+    # avoid "to count backwards make stride negative" sequence errors when 0 nodes of
+    # either infra or worker type are specified
+    ocp_vms_infra_num: "{{ 1|int if ocp_vms_infra_count == 0 else ocp_vms_infra_count }}"
+    ocp_vms_worker_num: "{{ 1|int if ocp_vms_worker_count == 0 else ocp_vms_worker_count }}"
+  tasks:  
+  - debug: msg="ocp_vms_infra_num ==> {{ ocp_vms_infra_num }} -- ocp_vms_infra_count ==> {{ ocp_vms_infra_count }}"
+
   - name: "Deploy VMs for OCP4 Solo Lab"
     import_role:
       name: ocp4-solo-vmprovision
