@@ -1,0 +1,8 @@
+---
+- name: "Booting {{ dns.clusterid }}.{{ item.name }}"
+  virt:
+    name: "{{ dns.clusterid }}.{{ item.name }}"
+    state: running
+- name: Pause for 30 seconds to allow multiple boot offsets
+  pause:
+    seconds: 30
