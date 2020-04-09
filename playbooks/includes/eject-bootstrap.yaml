@@ -1,0 +1,46 @@
+---
+- name: ansible-playbook pwd
+  run_once: True
+  set_fact:
+    ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+  failed_when: ansible_playbook_pwd == ''
+
+- name: stop bootstrap vm
+  virt:
+    name: "{{ dns.clusterid }}.{{ item.name }}"
+    state: destroyed
+  with_items:
+  - "{{ bootstrap }}"
+  ignore_errors: yes
+
+- name: record bootstrap VM path
+  shell: >
+    virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}'
+  with_items:
+  - "{{ bootstrap }}"
+  ignore_errors: yes
+  # Since we are looping (with_items), bsvmpath is a dictionary, with .results, use when setting facts below
+  register: bsvmpath
+  tags:
+  - vm_image_path_dict
+
+- name: Set bootstrap VM path fact
+  set_fact:
+    ocp_vms_bootstrap_vm_path: "{{ bsvmpath.results[0].stdout }}"
+
+- name: Pause for 15 seconds
+  pause:
+    seconds: 15
+
+- name: undefine bootstrap vm
+  virt:
+    name: "{{ dns.clusterid }}.{{ item.name }}"
+    command: undefine
+  with_items:
+  - "{{ bootstrap }}"
+  ignore_errors: yes
+
+- name: Ansible virt module does not properly remove VM image for "undefine" operation, so we now remove bootstrap VM image
+  file:
+    path: "{{ ocp_vms_bootstrap_vm_path }}"
+    state: absent
