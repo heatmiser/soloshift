@@ -161,6 +161,9 @@ At this point, patch the image registry to use local storage:
 	(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
 		--type merge \
 		--patch '{"spec":{"storage":{"emptyDir":{}}}}'
+	(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
+	    --type merge \
+        --patch '{"spec":{"managementState":"Managed"}}'
 
 If you receive a message like "cluster does not exist" or "cluster not found", wait a bit and rerun.
 
