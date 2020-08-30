@@ -73,6 +73,18 @@
     async: 6000
     poll: 0
 
+  - name: Loop on CSR approvals until worker nodes get approved
+    command: |
+      workersrequested=$(yq r {{ ansible_user_dir }}/ocp4upi/install-config.yaml.bak compute.[0].replicas)
+      workersapproved=0
+      until [ $workersapproved -eq $workersrequested ]; do
+      oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve 2> >(sed -e 's/^error.*CSRs\ must\ be\ specified.*/Continue\ CSR\ approval\ loop/' >&2)
+      sleep 15  
+      workersapproved=$(oc get csr | grep -v NAME | grep worker | grep Approved | wc -l)
+      done
+    async: 6000
+    poll: 0
+
   - name: >
       Wait until the string "Working towards 4.x.y: 99% complete" is in the file .openshift_install.log before continuing...
     wait_for:
