@@ -312,7 +312,7 @@
   when: matchbox
 
 - name: noodle for rhcos installer initramfs file
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs {{ ocp_vms_openshift_release }}"
   register: rhcosinitramfs
   retries: 4
   delay: 30
@@ -333,7 +333,7 @@
     - noodlin
 
 - name: noodle for rhcos installer kernel file
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel {{ ocp_vms_openshift_release }}"
   register: rhcoskernel
   retries: 4
   delay: 30
@@ -369,7 +369,7 @@
 
 - block:
   - name: noodle for rhcos metal file - RHOCP 4.3 and later
-    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal"
+    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal {{ ocp_vms_openshift_release }}"
     register: rhcosmetalbios
     retries: 4
     delay: 30
