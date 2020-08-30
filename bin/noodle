@@ -1,2 +1,2 @@
 #!/bin/bash
-wget -q -O - $1 | grep $2 | sed -n 's/.*href="\([^"]*\).*/\1/p'
+wget -q -O - $1 | grep $2 | grep $3 | sed -n 's/.*href="\([^"]*\).*/\1/p'
