@@ -209,6 +209,7 @@
   template:
     src: virt-net-openshift-private.xml.j2
     dest: /tmp/virt-net-openshift-private.xml
+    mode: 644
   tags:
     - template
     - ocp_vms_networks
@@ -278,6 +279,7 @@
   template:
     src: utility-ifcfg-eth0.j2
     dest: /tmp/ifcfg-eth0
+    mode: 644
     force: True
   vars:
     net_with_mask: "{{ ocp_vms_net_cidr | ipaddr('network') }}/{{ ocp_vms_net_cidr | ipaddr('netmask') }}"
