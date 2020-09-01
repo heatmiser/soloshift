@@ -3,7 +3,7 @@ baseDomain: {{ ocp_vms_openshift_rootdomain }}
 compute:
 - hyperthreading: Enabled
   name: worker
-  replicas: 0
+  replicas: {{ ocp_vms_worker_count }}
 controlPlane:
   hyperthreading: Enabled
   name: master
