@@ -766,7 +766,7 @@
     mode: 0555
 
 - name: noodle for OC client tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }}"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux {{ ocp_vms_openshift_release }}"
   register: occlient
   retries: 4
   delay: 30
@@ -787,7 +787,7 @@
     - noodlin
 
 - name: noodle for OpenShift Installer tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }}"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux {{ ocp_vms_openshift_release }}"
   register: ospinstaller
   retries: 4
   delay: 30
@@ -867,6 +867,14 @@
     mode: 0555
   when: ocp_util_filetranspiler
 
+- name: Place ocp-approve-pending-csrs utility
+  copy:
+    src: ../files/ocp-approve-pending-csrs.sh
+    dest: /usr/local/bin/ocp-approve-pending-csrs.sh
+    mode: '0755'
+  tags:
+    - install_csr_utility
+
 - name: Install jq utility
   get_url:
     url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
@@ -874,6 +882,22 @@
     mode: '0755'
   tags:
     - install_jq_utility
+
+- name: Install jp utility
+  get_url:
+    url: https://github.com/jmespath/jp/releases/download/0.1.3/jp-linux-amd64
+    dest: /usr/local/bin/jp
+    mode: '0755'
+  tags:
+    - install_jp_utility
+
+- name: Install yq utility
+  get_url:
+    url: https://github.com/mikefarah/yq/releases/download/3.3.2/yq_linux_amd64
+    dest: /usr/local/bin/yq
+    mode: '0755'
+  tags:
+    - install_yq_utility
 
 # Generate manifests, as we may need to modify prior to generating ignition configs in the future...
 - name: Execute openshift-install to create manifests
