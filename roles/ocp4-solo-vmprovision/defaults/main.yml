@@ -25,7 +25,7 @@ ocp_vms_infra_cpus: 4
 ocp_vms_infra_memory: 4096
 ocp_vms_worker_count: 2
 ocp_vms_worker_cpus: 4
-ocp_vms_worker_memory: 4096
+ocp_vms_worker_memory: 8192
 ocp_vms_hugepages: False
 ocp_vms_storage_overcommit: False
 ocp_vms_console: True
@@ -62,8 +62,8 @@ ocp_vms_master_nodes:
 ocp_vms_infra_nodes:
   - name: infra
     size: 120
-    ram: 4096
+    ram: 8192
 ocp_vms_worker_nodes:
   - name: worker
     size: 120
-    ram: 4096
+    ram: 8192
