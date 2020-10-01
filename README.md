@@ -7,12 +7,12 @@ While single system installation of OpenShift 4 is also made possible via [Red H
 
 # Cluster components
 
-By default, soloshift deploys a 1-1-1 OpenShift 4 cluster stack comprised of a single master node, single infrastructure node, and single worker node.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, and haproxy services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize a 3 master node control plane, multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
+By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three master nodes and two worker nodes, with the zero representing optional infrastructure nodes.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, and haproxy services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
 
 Requirements
 ------------
 
-A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 16GB RAM. Note that work is in progress to see if installations on Macs can be supported.
+A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 32GB RAM, however, more is recommended. Note that work is in progress to see if installations on Macs can be supported.
 
 Installation
 ------------
@@ -103,15 +103,15 @@ or
 * `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
 * `redhat_subscription_pool_regex`: If utilizing username/password, supply a regex to match on the desired pool. For example, to match on a subscription pool named Red Hat Enterprise Server, use "^Red Hat Enterprise Server$"
 
-* `ocp_vms_base_image`: rhel-server-7.7-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads --also, Fedora or CentOS cloud KVM qcow2 images can be used as well
-* `ocp_vms_openshift_release`: 4.1 - OpenShift version to deploy; 4.1, 4.2, 4.3 or pre-release
-* `ocp_vms_openshift_subdomain`: ocp41 - name for top level DNS sub-domain
+* `ocp_vms_base_image`: rhel-server-7.8-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads --also, Fedora or CentOS cloud KVM qcow2 images can be used as well
+* `ocp_vms_openshift_release`: 4.5 - OpenShift version to deploy; 4.1, 4.2, 4.3, 4.4, 4.5 or pre-release
+* `ocp_vms_openshift_subdomain`: ocp45 - name for top level DNS sub-domain
 * `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
 * `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
 * `ocp_vms_net_cidr`: 192.168.8.0/24 - internal subnet for cluster to use
-* `ocp_vms_master_count`: 1
-* `ocp_vms_infra_count`: 1
-* `ocp_vms_worker_count`: 1
+* `ocp_vms_master_count`: 3
+* `ocp_vms_infra_count`: 0
+* `ocp_vms_worker_count`: 2
 * `ocp_vms_openshift_pullsecret_file`: pull-secret.txt - download from https://cloud.redhat.com/openshift/install/metal/user-provisioned
 
 By default, SoloShift deploys VMs utilizing sparse backing files.  When creating VMs, if the size of the requested backing file is greater than the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`, the deploy automation will fail. If you would like to implement storage overcommit in order to bypass this limitation, add the following line to `inventory/group_vars/all/my_vars.yaml`:
@@ -175,10 +175,10 @@ You can also view the status of the bootstrap process as nodes come and go by ch
 
 Once the installation is complete, edit your hypervisor's /etc/hosts file to include some of the endpoints utilized by OpenShift.  For example if using all defaults, your /etc/hosts entries would look like this:
 
-	192.168.8.8 console-openshift-console.apps.ocp42.local.dc
-	192.168.8.8 oauth-openshift.apps.ocp42.local.dc
-	192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp42.local.dc
-	192.168.8.8 grafana-openshift-monitoring.apps.ocp42.local.dc
+	192.168.8.8 console-openshift-console.apps.ocp45.local.dc
+	192.168.8.8 oauth-openshift.apps.ocp45.local.dc
+	192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp45.local.dc
+	192.168.8.8 grafana-openshift-monitoring.apps.ocp45.local.dc
 
 In addition, you'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works. See below for additional instructions for utilizing [xip.io](http://xip.io/) to enable route name resolution without additional hosts file entries.
 
