@@ -68,6 +68,13 @@
         state: present
       when: not staticips and ansible_distribution_major_version|int >= 8
 
+    - name: Set domain_can_mmap_files flag on and keep it persistent across reboots, required for dhcpd
+      seboolean:
+        name: domain_can_mmap_files
+        state: yes
+        persistent: yes
+      when: not staticips and ansible_distribution_major_version|int >= 8
+
     - name: Install package for iPXE boot images
       yum:
         name:
@@ -766,7 +773,7 @@
     mode: 0555
 
 - name: noodle for OC client tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux {{ ocp_vms_openshift_release }}"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
   register: occlient
   retries: 4
   delay: 30
@@ -787,7 +794,7 @@
     - noodlin
 
 - name: noodle for OpenShift Installer tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux {{ ocp_vms_openshift_release }}"
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
   register: ospinstaller
   retries: 4
   delay: 30
