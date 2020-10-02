@@ -362,7 +362,7 @@
 
 - block:
   - name: noodle for rhcos metal bios file - RHOCP 4.2 and earlier
-    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal-bios"
+    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal-bios {{ ocp_vms_openshift_release }}"
     register: rhcosmetalbios
     retries: 4
     delay: 30
