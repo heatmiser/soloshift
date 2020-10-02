@@ -130,7 +130,7 @@ Place `pull-secret.txt` in the root of the soloshift directory.
 Download your VM image of choice (RHEL7 KVM qcow2 guest image, for example) and place it in the directory defined by `ocp_vms_libvirt_images_location`. Then, update `ocp_vms_base_image` with the name of the image.  If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
 
 If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the various VM nodes, edit
-`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding.  The default values are as low as you should go for successful installations. A minumum base hypervisor RAM of 16GB is required (laptop installation was one of the original goals for soloshift).
+`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding.  The default values are as low as you should go for successful installations. A minumum base hypervisor RAM of 32GB is required (laptop installation was one of the original goals for soloshift, however, the requirement for 3 master nodes has raised the miminum recommended RAM beyond the capabilities of most laptops).
 
 `(hypervisor)# ansible-galaxy install -p ./roles -r requirements.yaml`
 
