@@ -29,6 +29,10 @@
   - name: Verify that correct subscription-manager variables are defined
     vars:
       msg: |
+        redhat_subscription_username   ==> {{ redhat_subscription_username }}
+        redhat_subscription_password   ==> {{ redhat_subscription_password }}
+        redhat_subscription_pool_regex ==> {{ redhat_subscription_pool_regex }}
+
         When using username/password for subscribing a system, a pool must be
         specified. Determine the proper subscription product name to use and
         populate the redhat_subscription_pool_regex entry in
@@ -37,12 +41,14 @@
     debug:
       msg: "{{ msg.split('\n') }}"
     failed_when:
+      - ansible_distribution == 'RedHat'
+      - (redhat_subscription_username is defined) and (redhat_subscription_username is not none)
+      - (redhat_subscription_password is defined) and (redhat_subscription_password is not none)
       - redhat_subscription_pool_regex is match("\^\$")
     when:
       - ansible_distribution == 'RedHat'
-      - redhat_subscription_username is defined
-      - redhat_subscription_password is defined
-      - redhat_subscription_pool_regex is match("\^\$")
+      - (redhat_subscription_username is defined) and (redhat_subscription_username is not none)
+      - (redhat_subscription_password is defined) and (redhat_subscription_password is not none)
 
   - name: "RHN registration and repo enablement - RHEL7"
     import_role:
