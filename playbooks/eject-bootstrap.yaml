@@ -47,3 +47,25 @@
     file:
       path: "{{ ocp_vms_bootstrap_vm_path }}"
       state: absent
+
+- hosts: util
+  become: true
+  gather_facts: false
+  tasks:
+  - name: Wait for connection...
+    wait_for_connection:
+      connect_timeout: 20
+      sleep: 5
+      delay: 5
+      timeout: 300
+
+  - name: haproxy - remove bootstrap node from API control plane and API machine config backends
+    lineinfile:
+      path: /etc/haproxy/haproxy.cfg
+      regexp: 'server bootstrap'
+      state: absent
+
+  - name: restart haproxy service
+    service:
+      name: haproxy
+      state: restarted
