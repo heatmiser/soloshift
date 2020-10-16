@@ -210,12 +210,14 @@
     vars:
       vm_image_path: "{{ lookup('ini', '{{ util.name }}.imgpath section=utility file=/tmp/vm_img_path.ini') }}"
     shell: >
+        virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
 
   - name: "Remove bootstrap vm image file"
     vars:
       vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=bootstrap file=/tmp/vm_img_path.ini') }}"
     shell: >
+        virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
     with_items:
     - "{{ bootstrap }}"
@@ -225,6 +227,7 @@
     vars:
       vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=masters file=/tmp/vm_img_path.ini') }}"
     shell: >
+        virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
     with_items:
     - "{{ masters }}"
@@ -233,6 +236,7 @@
     vars:
       vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=infras file=/tmp/vm_img_path.ini') }}"
     shell: >
+        virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
     with_items:
     - "{{ infras }}"
@@ -242,6 +246,7 @@
     vars:
       vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=workers file=/tmp/vm_img_path.ini') }}"
     shell: >
+        virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
     with_items:
     - "{{ workers }}"
@@ -250,6 +255,7 @@
     vars:
       vm_image_path: "{{ util.vm_image_backing_file }}"
     shell: >
+        virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
 
   - name: Remove libvirt network
