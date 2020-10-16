@@ -269,7 +269,7 @@
 
 - name: Get matchbox distribution
   get_url:
-    url: https://github.com/poseidon/matchbox/releases/download/v0.8.0/matchbox-v0.8.0-linux-amd64.tar.gz
+    url: https://github.com/poseidon/matchbox/releases/download/v0.8.3/matchbox-v0.8.3-linux-amd64.tar.gz
     dest: /tmp
     mode: '0440'
   register: getmatchresult
@@ -278,7 +278,7 @@
 
 - name: Extract matchbox distribution to /tmp
   unarchive:
-    src: /tmp/matchbox-v0.8.0-linux-amd64.tar.gz
+    src: /tmp/matchbox-v0.8.3-linux-amd64.tar.gz
     dest: /tmp
     extra_opts:
     - --strip=1
@@ -318,18 +318,37 @@
     - /var/lib/matchbox/install
   when: matchbox
 
-- name: noodle for rhcos installer initramfs file
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-initramfs {{ ocp_vms_openshift_release }}"
+- name: noodle for rhcos installer initramfs file - GA release
+  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} installer-initramfs {{ ocp_vms_openshift_release }}"
   register: rhcosinitramfs
   retries: 4
   delay: 30
   until: rhcosinitramfs.rc == 0
+  when: ocp_vms_openshift_prerelease is not defined
   tags:
     - noodlin
 
 - name: Set rhcos installer initramfs file name as fact
   set_fact:
     rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
+  when: rhcosinitramfs.rc is defined and rhcosinitramfs.rc == 0
+  tags:
+    - noodlin
+
+- name: noodle for rhcos installer initramfs file - pre-release
+  script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-initramfs nightly"
+  register: rhcosinitramfs
+  retries: 4
+  delay: 30
+  until: rhcosinitramfs.rc == 0
+  when: ocp_vms_openshift_prerelease is defined
+  tags:
+    - noodlin
+
+- name: Set rhcos installer initramfs file name as fact
+  set_fact:
+    rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
+  when: rhcosinitramfs.rc is defined and rhcosinitramfs.rc == 0
   tags:
     - noodlin
 
@@ -339,18 +358,37 @@
   tags:
     - noodlin
 
-- name: noodle for rhcos installer kernel file
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ installer-kernel {{ ocp_vms_openshift_release }}"
+- name: noodle for rhcos installer kernel file - GA release
+  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} installer-kernel {{ ocp_vms_openshift_release }}"
   register: rhcoskernel
   retries: 4
   delay: 30
   until: rhcoskernel.rc == 0
+  when: ocp_vms_openshift_prerelease is not defined
   tags:
     - noodlin
 
 - name: Set rhcos installer kernel file name as fact
   set_fact:
     rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
+  when: rhcoskernel.rc is defined and rhcoskernel.rc == 0
+  tags:
+    - noodlin
+
+- name: noodle for rhcos installer kernel file - pre-release
+  script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-kernel nightly"
+  register: rhcoskernel
+  retries: 4
+  delay: 30
+  until: rhcoskernel.rc == 0
+  when: ocp_vms_openshift_prerelease is defined
+  tags:
+    - noodlin
+
+- name: Set rhcos installer kernel file name as fact
+  set_fact:
+    rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
+  when: rhcoskernel.rc is defined and rhcoskernel.rc == 0
   tags:
     - noodlin
 
@@ -362,7 +400,7 @@
 
 - block:
   - name: noodle for rhcos metal bios file - RHOCP 4.2 and earlier
-    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal-bios {{ ocp_vms_openshift_release }}"
+    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal-bios {{ ocp_vms_openshift_release }}"
     register: rhcosmetalbios
     retries: 4
     delay: 30
@@ -376,7 +414,7 @@
 
 - block:
   - name: noodle for rhcos metal file - RHOCP 4.3 and later
-    script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/ metal {{ ocp_vms_openshift_release }}"
+    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal {{ ocp_vms_openshift_release }}"
     register: rhcosmetalbios
     retries: 4
     delay: 30
@@ -384,7 +422,24 @@
   - name: Set rhcos metal bios file name as fact
     set_fact:
       rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
-  when: ocp_vms_openshift_release is version('4.3', '>=')
+  when: ocp_vms_openshift_release is version('4.3', '>=') and ocp_vms_openshift_release is version('5.0', '<')
+  tags:
+    - noodlin
+
+- debug:
+    msg: "./bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} metal\\\\. nightly"
+
+- block:
+  - name: noodle for rhcos metal file - pre-release
+    script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} metal\\\\. nightly"
+    register: rhcosmetalbios
+    retries: 4
+    delay: 30
+    until: rhcosmetalbios.rc == 0
+  - name: Set rhcos metal bios file name as fact
+    set_fact:
+      rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+  when: ocp_vms_openshift_prerelease is defined
   tags:
     - noodlin
 
@@ -424,13 +479,23 @@
   tags:
     - rhcos_mb_asset_files
 
-- name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox
+- name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox - GA release
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ item }}
+    url: "{{ ocp_rhcos_artifacts_url }}{{ item }}"
     dest: /var/lib/matchbox/assets
     mode: '0440'
   loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
-  when: matchbox
+  when: matchbox and ocp_vms_openshift_prerelease is not defined
+  tags:
+    - rhcos_mb_asset_files
+
+- name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox - pre-release
+  get_url:
+    url: "{{ ocp_rhcos_prerelease_artifacts_url }}{{ item }}"
+    dest: /var/lib/matchbox/assets
+    mode: '0440'
+  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+  when: matchbox and ocp_vms_openshift_prerelease is defined
   tags:
     - rhcos_mb_asset_files
 
@@ -498,7 +563,7 @@
 
 - name: Get OCP4 installer Bios
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ rhcosmetalbiosfile }}
+    url: "{{ ocp_rhcos_artifacts_url }}{{ rhcosmetalbiosfile }}"
     dest: /var/www/html/install/bios.raw.gz
     mode: 0555
   when: not matchbox
@@ -622,7 +687,7 @@
 
 - name: Get OCP4 installer initramfs
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ rhcosinitramfsfile }}
+    url: "{{ ocp_rhcos_artifacts_url }}{{ rhcosinitramfsfile }}"
     dest: /var/lib/tftpboot/rhcos/initramfs.img
     mode: 0555
   when:
@@ -631,7 +696,7 @@
 
 - name: Get OCP4 installer kernel
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/{{ rhcoskernelfile }}
+    url: "{{ ocp_rhcos_artifacts_url }}{{ rhcoskernelfile }}"
     dest: /var/lib/tftpboot/rhcos/kernel
     mode: 0555
   when:
@@ -772,18 +837,37 @@
     group: root
     mode: 0555
 
-- name: noodle for OC client tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ client-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
+- name: noodle for OC client tarball - GA release
+  script: "../bin/noodle {{ ocp_clients_artifacts_url }} client-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
   register: occlient
   retries: 4
   delay: 30
   until: occlient.rc == 0
+  when: ocp_vms_openshift_prerelease is not defined
   tags:
     - noodlin
 
 - name: Set OC client tarball file name as fact
   set_fact:
     occlientfile: "{{ occlient.stdout | trim }}"
+  when: occlient.rc is defined and occlient.rc == 0
+  tags:
+    - noodlin
+
+- name: noodle for OC client tarball - pre-release
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/ client-linux- rc"
+  register: occlient
+  retries: 4
+  delay: 30
+  until: occlient.rc == 0
+  when: ocp_vms_openshift_prerelease is defined
+  tags:
+    - noodlin
+
+- name: Set OC client tarball file name as fact
+  set_fact:
+    occlientfile: "{{ occlient.stdout | trim }}"
+  when: occlient.rc is defined and occlient.rc == 0
   tags:
     - noodlin
 
@@ -793,18 +877,37 @@
   tags:
     - noodlin
 
-- name: noodle for OpenShift Installer tarball
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/ install-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
+- name: noodle for OpenShift Installer tarball - GA release
+  script: "../bin/noodle {{ ocp_clients_artifacts_url }} install-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
   register: ospinstaller
   retries: 4
   delay: 30
   until: ospinstaller.rc == 0
+  when: ocp_vms_openshift_prerelease is not defined
   tags:
     - noodlin
 
 - name: Set OpenShift Installer tarball file name as fact
   set_fact:
     ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
+  when: ospinstaller.rc is defined and ospinstaller.rc == 0
+  tags:
+    - noodlin
+
+- name: noodle for OpenShift Installer tarball - pre-release
+  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/ install-linux- rc"
+  register: ospinstaller
+  retries: 4
+  delay: 30
+  until: ospinstaller.rc == 0
+  when: ocp_vms_openshift_prerelease is defined
+  tags:
+    - noodlin
+
+- name: Set OpenShift Installer tarball file name as fact
+  set_fact:
+    ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
+  when: ospinstaller.rc is defined and ospinstaller.rc == 0
   tags:
     - noodlin
 
@@ -824,13 +927,23 @@
   tags:
     - oc_client_asset_files
 
-- name: Download OC client tarball and/or OpenShift Installer tarball
+- name: Download OC client tarball and/or OpenShift Installer tarball - GA release
   get_url:
-    url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-{{ ocp_vms_openshift_release }}/{{ item }}
+    url: "{{ ocp_clients_artifacts_url }}{{ item }}"
     dest: /usr/local/src
     mode: '0440'
   loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
-  when: ocp_vms_openshift_release != "pre-release"
+  when: ocp_vms_openshift_prerelease is not defined
+  tags:
+    - oc_client_asset_files
+
+- name: Download OC client tarball and/or OpenShift Installer tarball - pre-release
+  get_url:
+    url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/{{ item }}
+    dest: /usr/local/src
+    mode: '0440'
+  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+  when: ocp_vms_openshift_prerelease is defined
   tags:
     - oc_client_asset_files
 
@@ -850,7 +963,6 @@
     dest: /usr/local/bin
     remote_src: yes
   loop: "{{ oc_client_assets2.results | selectattr('stat.exists') | map(attribute='item') | list }}"
-  when: ocp_vms_openshift_release != "pre-release"
 
 - name: Removing files that are not needed
   file:
@@ -882,11 +994,25 @@
   tags:
     - install_csr_utility
 
-- name: Install jq utility
+- name: Download jq and place in /usr/local/bin
   get_url:
     url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+    dest: /usr/local/bin
+    mode: 0777
+    checksum: sha256:af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44
+    group: root
+    owner: root
+  tags:
+    - install_jq_utility
+
+- name: Create symlink for jq --> jq-linux64
+  file:
+    src: /usr/local/bin/jq-linux64
     dest: /usr/local/bin/jq
-    mode: '0755'
+    owner: root
+    group: root
+    state: link
+    force: true
   tags:
     - install_jq_utility
 
@@ -917,7 +1043,7 @@
     line: '  mastersSchedulable: false'
   tags:
     - cluster_scheduler
-  when: ocp_vms_openshift_release == "4.2" or (ocp_vms_infra_count|int >= 1 and ocp_vms_worker_count|int >= 1) or (ocp_vms_infra_count|int >= 2 or ocp_vms_worker_count|int >= 2)
+  when: ocp_vms_openshift_release is version('4.2', '<=') or (ocp_vms_infra_count|int >= 1 and ocp_vms_worker_count|int >= 1) or (ocp_vms_infra_count|int >= 2 or ocp_vms_worker_count|int >= 2)
 
 - name: Execute openshift-install to create ignition-configs
   command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create ignition-configs"
