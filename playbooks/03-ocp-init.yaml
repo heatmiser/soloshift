@@ -82,7 +82,7 @@
       Wait until the string "Working towards 4.x.y: 8z% complete" is in the file .openshift_install.log before continuing...
     wait_for:
       path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: Working\ towards\ 4\.(.*)\ 8(.*)\%\ complete\,\ waiting\ on
+      search_regex: Working\ towards\ 4\.(.*)\ 8(.*)\%\ complete
       timeout: 2000
       sleep: 10
 

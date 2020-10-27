@@ -51,51 +51,189 @@
       - (redhat_subscription_password is defined) and (redhat_subscription_password is not none)
 
   - name: "RHN registration and repo enablement - RHEL7"
-    import_role:
-      name: devnullcake.redhat-subscription
-    vars:
-      redhat_subscription_enable_explicit_repos_only: "yes"
-      redhat_subscription_disable_repos: []
-      redhat_subscription_enable_repos:
-        - rhel-7-server-rpms
-        - rhel-7-server-extras-rpms
-        - rhel-7-server-ansible-2.8-rpms
-    register: registration_result
-    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    block:
+      - name: "RHN registration and repo enablement - RHEL7 - message output"
+        vars:
+          msg: RHN registration and repo enablement - RHEL7
+        debug:
+          msg: "{{ msg.split('\n') }}"
+
+      - name: "RHN registration and repo enablement - RHEL7"
+        import_role:
+          name: devnullcake.redhat-subscription
+        vars:
+          redhat_subscription_enable_explicit_repos_only: "yes"
+          redhat_subscription_disable_repos: []
+          redhat_subscription_enable_repos:
+            - rhel-7-server-rpms
+            - rhel-7-server-extras-rpms
+            - rhel-7-server-ansible-2.8-rpms
+        register: registration_result
+        ignore_errors: yes
+        failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
       - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
       - ocp_vms_util_node
 
   - name: "RHN registration with subscription pool defined - RHEL8"
-    import_role:
-      name: devnullcake.redhat-subscription
-    vars:
-      redhat_subscription_enable_explicit_repos_only: "yes"
-      redhat_subscription_disable_repos: []
-      redhat_subscription_enable_repos: []
-    register: registration_result
-    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    block:
+      - name: "RHN registration with subscription pool defined - RHEL8 - message output"
+        vars:
+          msg: RHN registration with subscription pool defined - RHEL8
+        debug:
+          msg: "{{ msg.split('\n') }}"
+
+      - name: "RHN registration with subscription pool defined - RHEL8"
+        import_role:
+          name: devnullcake.redhat-subscription
+        vars:
+          redhat_subscription_enable_explicit_repos_only: "yes"
+          redhat_subscription_disable_repos: []
+          redhat_subscription_enable_repos: []
+        register: registration_result
+        failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
       - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
       - redhat_subscription_pool_regex is not match("\^\$")
       - ocp_vms_util_node
 
   - name: "RHN registration with repos enabled - RHEL8"
-    import_role:
-      name: devnullcake.redhat-subscription
-    vars:
-      redhat_subscription_enable_explicit_repos_only: "yes"
-      redhat_subscription_disable_repos: []
-      redhat_subscription_enable_repos:
-        - rhel-8-for-x86_64-baseos-rpms
-        - rhel-8-for-x86_64-appstream-rpms
-        - ansible-2.9-for-rhel-8-x86_64-rpms
-    register: registration_result
-    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+    block:
+      - name: "RHN registration with repos enabled - RHEL8 - message output"
+        vars:
+          msg: RHN registration with repos enabled - RHEL8
+        debug:
+          msg: "{{ msg.split('\n') }}"
+
+      - name: "RHN registration with repos enabled - RHEL8"
+        import_role:
+          name: devnullcake.redhat-subscription
+        vars:
+          redhat_subscription_enable_explicit_repos_only: "yes"
+          redhat_subscription_disable_repos: []
+          redhat_subscription_enable_repos:
+            - rhel-8-for-x86_64-baseos-rpms
+            - rhel-8-for-x86_64-appstream-rpms
+            - ansible-2.9-for-rhel-8-x86_64-rpms
+        register: registration_result
+        failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     when:
       - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
       - redhat_subscription_pool_regex is match("\^\$")
       - ocp_vms_util_node
+
+  - name: subscription-manager status
+    command: "subscription-manager status"
+    register: subman_status
+    ignore_errors: yes
+    when:
+      - ansible_distribution == 'RedHat'
+
+  - name: "Lookup available subscriptions if needed"
+    block:
+    - name: Set python version
+      vars:
+        regex: "\\.[^.]*$"
+        replace: ""
+      set_fact:
+        python_major_minor_version: "{{ ansible_python_version|regex_replace(regex, replace) }}"
+
+    - name: Download jq and place in /usr/local/bin
+      get_url:
+        url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        dest: /usr/local/bin
+        mode: 0777
+        checksum: sha256:af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44
+        group: root
+        owner: root
+
+    - name: Create symlink for jq --> jq-linux64
+      file:
+        src: /usr/local/bin/jq-linux64
+        dest: /usr/local/bin/jq
+        owner: root
+        group: root
+        state: link
+        force: true
+
+    - name: Pull down patch utility rpm - RHEL8
+      get_url:
+        url: http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/patch-2.7.6-11.el8.x86_64.rpm
+        dest: "{{ ansible_user_dir }}/patch.rpm"
+        mode: 0555
+      when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
+
+    - name: Pull down patch utility rpm - RHEL7
+      get_url:
+        url: http://mirror.centos.org/centos/7/os/x86_64/Packages/patch-2.7.1-12.el7_7.x86_64.rpm
+        dest: "{{ ansible_user_dir }}/patch.rpm"
+        mode: 0555
+      when: ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+
+    - name: Extract patch binary from rpm package and place in /usr/local/bin
+      shell: >
+        rpm2cpio {{ ansible_user_dir }}/patch.rpm | cpio -idmv "*/bin*";
+        mv {{ ansible_user_dir }}/usr/bin/patch /usr/local/bin/;
+        chmod a+x /usr/local/bin/patch
+
+    - name: Create backup of subscription-manager managercli.py
+      copy:
+        src: "/usr/lib64/python{{ python_major_minor_version }}/site-packages/subscription_manager/managercli.py"
+        dest: "{{ ansible_user_dir }}/managercli.py.orig"
+        remote_src: yes
+
+    - name: Patch subscription-manager managercli.py to enable "JSONification"
+      patch:
+        src: "rhel8-managercli.py.patch"
+        dest: "/usr/lib64/python{{ python_major_minor_version }}/site-packages/subscription_manager/managercli.py"
+
+    - name: subscription-manager list available subscriptions
+      shell: >
+        subscription-manager list --available |
+        jq '.[]|select(.providedProducts|index("Red Hat Enterprise Linux for x86_64"))|.productName'
+      environment:
+          JSONIFY: yessir
+      register: subman_available_subs
+      ignore_errors: yes
+
+    - name: Restore subscription-manager managercli.py
+      copy:
+        src: "{{ ansible_user_dir }}/managercli.py.orig"
+        dest: "/usr/lib64/python{{ python_major_minor_version }}/site-packages/subscription_manager/managercli.py"
+        remote_src: yes
+
+    - name: Provide available subscription names
+      vars:
+        regex: "[`'\"]"
+        replace: ""
+        msg: |
+          The provided subscription name regex: {{ redhat_subscription_pool_regex }}
+          ...did not match any available subscriptions. The following subscriptions
+          provide product coverage for "Red Hat Enterprise Linux for x86_64". Please
+          choose one of these subscriptions and update the redhat_subscription_pool_regex
+          variable to use this name as the product name regex. After doing so, rerun
+          this playbook.
+          ---------------------------------------------------------------------------
+        subs: "{{ subman_available_subs.stdout|regex_replace(regex, replace) }}"
+      debug:
+        msg: "{{ msg + subs }}"
+      failed_when: '"Overall Status: Invalid" in subman_status.stdout'
+
+    when:
+      - ansible_distribution == 'RedHat'
+      - '"Overall Status: Invalid" in subman_status.stdout'
+  
+  - name: "Set OpenShift pre-release fact"
+    set_fact:
+      ocp_vms_openshift_prerelease: "true"
+    when:
+      ocp_vms_openshift_release == "pre-release"
+
+  - name: "Set OpenShift pre-release internal version"
+    set_fact:
+      ocp_vms_openshift_release: 5.0
+    when:
+      ocp_vms_openshift_release == "pre-release"
 
   - name: "Configure utility node"
     import_role:

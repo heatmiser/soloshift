@@ -1,0 +1,56 @@
+2648,2650c2648,2653
+<                     print("+-------------------------------------------+")
+<                     print("    " + _("Available Subscriptions"))
+<                     print("+-------------------------------------------+")
+---
+>                     if os.environ.get('JSONIFY') is None:
+>                         print("+-------------------------------------------+")
+>                         print("    " + _("Available Subscriptions"))
+>                         print("+-------------------------------------------+")
+>                     else:
+>                         import json
+2651a2655
+>                     multiout = []
+2666,2683c2670,2692
+<                         print(columnize(AVAILABLE_SUBS_LIST, highlight_by_filter_string_columnize_cb,
+<                                 data['productName'],
+<                                 data['providedProducts'],
+<                                 data['productId'],
+<                                 data['contractNumber'] or "",
+<                                 data['id'],
+<                                 data['management_enabled'],
+<                                 data['quantity'],
+<                                 data['suggested'],
+<                                 data['service_type'] or "",
+<                                 self._split_mulit_value_field(data['roles']),
+<                                 data['service_level'] or "",
+<                                 data['usage'] or "",
+<                                 self._split_mulit_value_field(data['addons']),
+<                                 data['pool_type'],
+<                                 data['startDate'],
+<                                 data['endDate'],
+<                                 entitlement_type, **kwargs) + "\n")
+---
+>                         multiout.append(data)
+>                         if os.environ.get('JSONIFY') is None:
+>                             print(columnize(AVAILABLE_SUBS_LIST, highlight_by_filter_string_columnize_cb,
+>                                     data['productName'],
+>                                     data['providedProducts'],
+>                                     data['productId'],
+>                                     data['contractNumber'] or "",
+>                                     data['id'],
+>                                     data['management_enabled'],
+>                                     data['quantity'],
+>                                     data['suggested'],
+>                                     data['service_type'] or "",
+>                                     self._split_mulit_value_field(data['roles']),
+>                                     data['service_level'] or "",
+>                                     data['usage'] or "",
+>                                     self._split_mulit_value_field(data['addons']),
+>                                     data['pool_type'],
+>                                     data['startDate'],
+>                                     data['endDate'],
+>                                     entitlement_type, **kwargs) + "\n")
+>                     if os.environ.get('JSONIFY') is not None and os.environ.get('JSONIFY'):
+>                         json_object = json.dumps(multiout, indent = 4)
+>                         print(json_object)
