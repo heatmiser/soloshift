@@ -318,13 +318,23 @@
     - /var/lib/matchbox/install
   when: matchbox
 
-- name: noodle for rhcos installer initramfs file - GA release
+- name: noodle for rhcos installer initramfs file - RHOCP 4.5 and previous
   script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} installer-initramfs {{ ocp_vms_openshift_release }}"
   register: rhcosinitramfs
   retries: 4
   delay: 30
   until: rhcosinitramfs.rc == 0
-  when: ocp_vms_openshift_prerelease is not defined
+  when: ocp_vms_openshift_release is version('4.5', '<=')
+  tags:
+    - noodlin
+
+- name: noodle for rhcos installer initramfs file - RHOCP 4.6 forward
+  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-initramfs {{ ocp_vms_openshift_release }}"
+  register: rhcosinitramfs
+  retries: 4
+  delay: 30
+  until: rhcosinitramfs.rc == 0
+  when: ocp_vms_openshift_release is version('4.6', '>=')
   tags:
     - noodlin
 
@@ -358,13 +368,23 @@
   tags:
     - noodlin
 
-- name: noodle for rhcos installer kernel file - GA release
+- name: noodle for rhcos installer kernel file - RHOCP 4.5 and previous
   script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} installer-kernel {{ ocp_vms_openshift_release }}"
   register: rhcoskernel
   retries: 4
   delay: 30
   until: rhcoskernel.rc == 0
-  when: ocp_vms_openshift_prerelease is not defined
+  when: ocp_vms_openshift_release is version('4.5', '<=')
+  tags:
+    - noodlin
+
+- name: noodle for rhcos installer kernel file - RHOCP 4.6 forward
+  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-kernel {{ ocp_vms_openshift_release }}"
+  register: rhcoskernel
+  retries: 4
+  delay: 30
+  until: rhcoskernel.rc == 0
+  when: ocp_vms_openshift_release is version('4.6', '>=')
   tags:
     - noodlin
 
@@ -413,7 +433,7 @@
     - noodlin
 
 - block:
-  - name: noodle for rhcos metal file - RHOCP 4.3 and later
+  - name: noodle for rhcos metal file - RHOCP 4.3 through RHOCP 4.5
     script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal {{ ocp_vms_openshift_release }}"
     register: rhcosmetalbios
     retries: 4
@@ -422,7 +442,21 @@
   - name: Set rhcos metal bios file name as fact
     set_fact:
       rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
-  when: ocp_vms_openshift_release is version('4.3', '>=') and ocp_vms_openshift_release is version('5.0', '<')
+  when: ocp_vms_openshift_release is version('4.3', '>=') and ocp_vms_openshift_release is version('4.5', '<=')
+  tags:
+    - noodlin
+
+- block:
+  - name: noodle for rhcos metal file - RHOCP 4.6 and later
+    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal\\\\. {{ ocp_vms_openshift_release }}"
+    register: rhcosmetalbios
+    retries: 4
+    delay: 30
+    until: rhcosmetalbios.rc == 0
+  - name: Set rhcos metal bios file name as fact
+    set_fact:
+      rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+  when: ocp_vms_openshift_release is version('4.6', '>=')
   tags:
     - noodlin
 
