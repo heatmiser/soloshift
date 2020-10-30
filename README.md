@@ -105,7 +105,6 @@ or
 
 * `ocp_vms_base_image`: rhel-server-7.8-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads --also, Fedora or CentOS cloud KVM qcow2 images can be used as well
 * `ocp_vms_openshift_release`: 4.6 - OpenShift version to deploy; 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 or pre-release
-> **NOTE**: 4.6 just released and utilizes a rebased RHEL CoreOS version, more information here: https://github.com/openshift/enhancements/blob/master/enhancements/rhcos/liveisoinstall.md Deployment for 4.6 is currently broken, however, the changes necessary for a successful 4.6 installation are currently being worked on and will be updated in the soloshift codebase shortly.
 * `ocp_vms_openshift_subdomain`: ocp4 - name for top level DNS sub-domain
 * `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
 * `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
