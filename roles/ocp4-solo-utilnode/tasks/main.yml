@@ -447,32 +447,32 @@
     - noodlin
 
 - block:
-  - name: noodle for rhcos metal file - RHOCP 4.6 and later
-    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal\\\\. {{ ocp_vms_openshift_release }}"
-    register: rhcosmetalbios
+  - name: noodle for rhcos live-rootfs file - RHOCP 4.6 and later
+    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-rootfs\\\\. {{ ocp_vms_openshift_release }}"
+    register: rhcosliverootfs
     retries: 4
     delay: 30
-    until: rhcosmetalbios.rc == 0
-  - name: Set rhcos metal bios file name as fact
+    until: rhcosliverootfs.rc == 0
+  - name: Set rhcos live-rootfs file name as fact
     set_fact:
-      rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+      rhcosliverootfsfile: "{{ rhcosliverootfs.stdout | trim }}"
   when: ocp_vms_openshift_release is version('4.6', '>=')
   tags:
     - noodlin
 
 - debug:
-    msg: "./bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} metal\\\\. nightly"
+    msg: "./bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-rootfs\\\\. nightly"
 
 - block:
-  - name: noodle for rhcos metal file - pre-release
-    script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} metal\\\\. nightly"
-    register: rhcosmetalbios
+  - name: noodle for rhcos live-rootfs file - pre-release
+    script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-rootfs\\\\. nightly"
+    register: rhcosliverootfs
     retries: 4
     delay: 30
-    until: rhcosmetalbios.rc == 0
-  - name: Set rhcos metal bios file name as fact
+    until: rhcosliverootfs.rc == 0
+  - name: Set rhcos live-rootfs file name as fact
     set_fact:
-      rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+      rhcosliverootfsfile: "{{ rhcosliverootfs.stdout | trim }}"
   when: ocp_vms_openshift_prerelease is defined
   tags:
     - noodlin
@@ -480,6 +480,14 @@
 - name: What is the rhcos metal bios file name?
   debug: 
     var: rhcosmetalbiosfile
+  when: ocp_vms_openshift_release is version('4.6', '<')
+  tags:
+    - noodlin
+
+- name: What is the rhcos live-rootfs file name?
+  debug: 
+    var: rhcosliverootfsfile
+  when: ocp_vms_openshift_release is version('4.6', '>=') or ocp_vms_openshift_prerelease is defined
   tags:
     - noodlin
 
@@ -490,6 +498,20 @@
     - "{{ rhcosinitramfsfile }}"
     - "{{ rhcoskernelfile }}"
     - "{{ rhcosmetalbiosfile }}"
+  when: ocp_vms_openshift_release is version('4.6', '<')
+# Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
+  register: rhcos_mb_assets
+  tags:
+    - rhcos_mb_asset_files
+
+- name: check if rhcos installer initramfs, kernel, and live-rootfs files are present
+  stat: 
+    path: /var/lib/matchbox/assets/{{ item }}
+  loop:
+    - "{{ rhcosinitramfsfile }}"
+    - "{{ rhcoskernelfile }}"
+    - "{{ rhcosliverootfsfile }}"
+  when: ocp_vms_openshift_release is version('4.6', '>=') or ocp_vms_openshift_prerelease is defined
 # Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
   register: rhcos_mb_assets
   tags:
@@ -613,6 +635,7 @@
   when:
     - not staticips
     - matchbox
+    - ocp_vms_openshift_release is version('4.6', '<')
 
 - name: Start service firewalld, if not started
   service:
