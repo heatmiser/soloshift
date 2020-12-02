@@ -97,12 +97,55 @@
     with_items:
     - "{{ workers }}"
 
+  - name: Create temporary file for utility image properties
+    tempfile:
+      state: file
+      suffix: .temp
+    register: utilpropstemp_1
+
+  - name: Dump utility VM XML properties "{{ utilpropstemp_1 }}"
+    shell: >
+      virsh dumpxml {{ dns.clusterid }}.{{ util.name }} > {{ utilpropstemp_1.path }}
+    tags:
+      - ocp_vms_util_image_props
+
+  - name: Query props file for utility VM disk devices
+    xml:
+      path: "{{ utilpropstemp_1.path }}"
+      xpath: /domain/devices/disk/target
+      content: attribute
+    register: devices_xml_text
+    tags:
+      - ocp_vms_util_image_props
+
+  - name: Remove props file "{{ utilpropstemp_1.path }}" using registered path var and file module
+    file:
+      path: "{{ utilpropstemp_1.path }}"
+      state: absent
+    when: utilpropstemp_1.path is defined
+
+  - debug: msg="{{ dns.clusterid }}.{{ util.name }} device list ==> {{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
+    tags:
+      - ocp_vms_util_image_props
+
+  - debug: msg="{{ dns.clusterid }}.{{ util.name }} device ==> {{ item }}"
+    with_items: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
+    tags:
+      - ocp_vms_util_image_props
+
+  - name: start utility VM image path ini section
+    shell: >
+      echo "" >> /tmp/vm_img_path.ini;
+      echo "[utility]" >> /tmp/vm_img_path.ini
+    tags:
+    - vm_image_path_dict
+
   - name: record utility VM image path
     shell: >
-      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ util.name }} | grep {{ disk }} | awk '{print $2}');
-      echo "[utility]" > /tmp/vm_img_path.ini;
-      echo "{{ util.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini;
+      imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ util.name }} | grep {{ item }} | awk '{print $2}');
+      echo "{{ util.name }}-{{ item }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini;
       echo "" >> /tmp/vm_img_path.ini
+    with_items: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
     tags:
     - vm_image_path_dict
 
@@ -208,10 +251,11 @@
 
   - name: "Remove utility vm image file"
     vars:
-      vm_image_path: "{{ lookup('ini', '{{ util.name }}.imgpath section=utility file=/tmp/vm_img_path.ini') }}"
+      vm_image_path: "{{ lookup('ini', '{{ util.name }}-{{ item }}.imgpath section=utility file=/tmp/vm_img_path.ini') }}"
     shell: >
         virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
+    with_items: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
 
   - name: "Remove bootstrap vm image file"
     vars:
