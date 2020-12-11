@@ -1155,15 +1155,3 @@
   service:
     name: haproxy
     state: restarted
-
-- name: Information about this install 
-  vars: 
-    msg: |
-      "Next, execute:"
-      "# ansible-playbook playbooks/03-ocp-init.yaml"
-      "Once the playbook run is complete, ssh into the util vm and run:"
-      "# /usr/local/bin/utilnodecheck"
-      "...for installation status and details."
-  debug: 
-    msg: "{{ msg.split('\n') }}"       
-  tags: debug_info
