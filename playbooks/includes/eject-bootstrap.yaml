@@ -28,10 +28,6 @@
   set_fact:
     ocp_vms_bootstrap_vm_path: "{{ bsvmpath.results[0].stdout }}"
 
-- name: Pause for 15 seconds
-  pause:
-    seconds: 15
-
 - name: undefine bootstrap vm
   virt:
     name: "{{ dns.clusterid }}.{{ item.name }}"
@@ -39,6 +35,10 @@
   with_items:
   - "{{ bootstrap }}"
   ignore_errors: yes
+
+- name: Pause for 5 seconds
+  pause:
+    seconds: 5
 
 - name: Ansible virt module does not properly remove VM image for "undefine" operation, so we now remove bootstrap VM image
   file:
