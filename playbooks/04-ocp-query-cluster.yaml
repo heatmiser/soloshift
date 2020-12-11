@@ -1,0 +1,56 @@
+#vim: set ft=ansible:
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: ansible-playbook pwd
+    run_once: True
+    set_fact:
+      ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+    failed_when: ansible_playbook_pwd == ''
+
+  - name: current local user
+    run_once: True
+    set_fact:
+      ansible_local_user: "{{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True) | d(lookup('env', 'USER'), True) |  d(lookup('env', 'user'), True) |  d(lookup('env', 'LOGNAME'), True) }}"
+    failed_when: ansible_local_user == ''
+
+  - name: current local group
+    run_once: True
+    set_fact:
+      ansible_local_group: "{{ lookup('pipe', 'id -gn') }}"
+    failed_when: ansible_local_group == ''
+
+- hosts: util
+  become: true
+  gather_facts: no
+  tasks:
+  - name: Wait for connection...
+    wait_for_connection:
+      delay: 10
+      timeout: 120
+
+  - name: "pip modules for OCP/K8s"
+    import_role:
+      name: ocp4-solo-post-install
+      tasks_from: ocp-pip-modules
+
+- hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: "Query cluster details study for OCP4 Solo Lab"
+    import_role:
+      name: ocp4-solo-post-install
+      tasks_from: query-cluster
+    delegate_to: util
+
+# Included as a reference for debugging
+- hosts: "*"
+  tasks:
+  - name: Display inventory related ansible vars 
+    block:
+    - debug: var=ansible_host
+    - debug: var=inventory_hostname
+    - debug: var=ansible_hostname
+    #- debug: var=hostvars
+  tags: storage_node_dns
