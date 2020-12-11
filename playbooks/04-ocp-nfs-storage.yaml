@@ -1,0 +1,14 @@
+#vim: set ft=ansible:
+---
+- hosts: util
+  become: true
+  tasks:
+  - name: "OCP pip modules"
+    import_role:
+      name: ocp4-solo-post-install
+      tasks_from: ocp-pip-modules
+
+  - name: "NFS Storage config"
+    import_role:
+      name: ocp4-solo-post-install
+      tasks_from: nfs-storage

@@ -12,9 +12,10 @@ ocp_vms_utility_os: rhel7
 ocp_vms_utility_name: util
 ocp_vms_utility_cpus: 1
 ocp_vms_utility_size: 30
+ocp_vms_storage_type: nfs
 ocp_vms_storage_name: storage
 ocp_vms_storage_cpus: 2
-ocp_vms_storage_size: 30
+ocp_vms_storage_size: 150
 ocp_vms_bootstrap_cpus: 2
 ocp_vms_bootstrap_memory: 4096
 ocp_vms_master_count: 3

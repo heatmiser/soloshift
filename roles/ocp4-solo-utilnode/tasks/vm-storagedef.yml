@@ -1,0 +1,41 @@
+---
+- name: Create temporary file for utility image properties
+  tempfile:
+    state: file
+    suffix: .temp
+  register: utilpropstemp_1
+
+- name: Dump utility VM XML properties "{{ utilpropstemp_1 }}"
+  shell: >
+    virsh dumpxml {{ dns.clusterid }}.{{ util.name }} > {{ utilpropstemp_1.path }}
+  tags:
+    - ocp_vms_util_image_props
+
+- name: Query props file for utility VM disk devices
+  xml:
+    path: "{{ utilpropstemp_1.path }}"
+    xpath: /domain/devices/disk/target
+    content: attribute
+  register: devices_xml_text
+  tags:
+    - ocp_vms_util_image_props
+
+- name: Remove props file "{{ utilpropstemp_1.path }}" using registered path var and file module
+  file:
+    path: "{{ utilpropstemp_1.path }}"
+    state: absent
+  when: utilpropstemp_1.path is defined
+
+- debug: msg="{{ dns.clusterid }}.{{ util.name }} device list ==> {{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
+  tags:
+    - ocp_vms_util_image_props
+
+- debug: msg="{{ dns.clusterid }}.{{ util.name }} device ==> {{ item }}"
+  with_items: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
+  tags:
+    - ocp_vms_util_image_props
+
+- name: Set storage device list from registered devices_xml_text
+  set_fact:
+    ocp_vms_util_device_list: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
+    cacheable: yes

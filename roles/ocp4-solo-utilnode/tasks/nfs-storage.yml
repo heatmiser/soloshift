@@ -1,0 +1,79 @@
+---
+- name: NFS, LVM2 and XFSprogs package installation on Fedora
+  dnf:
+    name:
+      - nfs-utils
+      - lvm2
+      - xfsprogs
+    state: present
+  when:
+    - ansible_distribution == 'Fedora'
+
+- name: NFS firewall exceptions
+  firewalld:
+    permanent: yes
+    immediate: yes
+    state: enabled
+    service: "{{ item }}"
+  with_items:
+    - nfs
+    - mountd
+    - rpc-bind
+
+- debug: msg="{{ dns.clusterid }}.{{ util.name }} device ==> {{ item }}"
+  with_items: "{{ hostvars['127.0.0.1']['ansible_facts']['ocp_vms_util_device_list'] | last }}"
+  tags:
+    - ocp_vms_util_image_props
+
+- name: Create a volume group on top of /dev/{{ hostvars['127.0.0.1']['ansible_facts']['ocp_vms_util_device_list'] | last }} with physical extent size = 4M
+  lvg:
+    vg: storage01
+    pvs: "/dev/{{ hostvars['127.0.0.1']['ansible_facts']['ocp_vms_util_device_list'] | last }}"
+    pesize: 4096K
+
+- name: Create logical volume utilizing all remaining space in volume group
+  lvol:
+    vg: storage01
+    lv: ocppersist01
+    size: 100%VG
+
+- name: Create an xfs filesystem on /dev/storage01/ocppersist01
+  filesystem:
+    fstype: xfs
+    dev: /dev/storage01/ocppersist01
+
+- name: Mount /dev/mapper/storage01-ocppersist01 on /mnt/nfs and add to /etc/fstab
+  mount:
+    path: /mnt/nfs
+    src: /dev/mapper/storage01-ocppersist01
+    fstype: xfs
+    state: mounted
+
+- name: Create /mnt/nfs/ocp directory if it does not exist
+  file:
+    path: /mnt/nfs/ocp
+    state: directory
+    mode: '0777'
+
+- name: Create /mnt/nfs/store0{0..9} directories if not exist
+  file:
+    path: /mnt/nfs/store{{ item }}
+    state: directory
+    mode: '0777'
+  with_sequence:
+    start=0
+    end=9
+    format=%02d
+
+- name: Write out /etc/exports file
+  template:
+    src: nfs/exports.j2
+    dest: /etc/exports
+
+- name: Enable/Start NFS service
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items:
+    - nfs-server.service

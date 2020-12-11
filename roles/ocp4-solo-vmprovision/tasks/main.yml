@@ -297,6 +297,14 @@
   with_items:
     - "{{ ocp_vms_utility_node }}"
 
+- name: Create additional disk for persistent storage
+  import_role: 
+    name: ocp4-solo-vmprovision
+    tasks_from: nfs-storage.yml
+  when: ocp_vms_storage_type == 'nfs'
+  tags:
+    - ocp_vms_storage
+
 - name: Create OpenShift bootstrap virtual machines
   command: >
     virt-install

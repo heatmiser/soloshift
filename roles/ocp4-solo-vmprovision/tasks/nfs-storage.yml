@@ -1,0 +1,21 @@
+---
+- name: Create storage disk(s)
+  command: "qemu-img create -f qcow2 -o preallocation=metadata {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}-storage.qcow2 {{ ocp_vms_storage_size }}G"
+  args:
+    creates: "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}-storage.qcow2"
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  tags:
+    - ocp_vms_storage
+
+- name: Attach storage disk(s)
+  command: >
+    virsh attach-disk {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_utility_name }}
+    --source {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}-storage.qcow2
+    --target sdb
+    --cache none
+    --persistent
+  with_items:
+    - "{{ ocp_vms_utility_node }}"
+  tags:
+    - ocp_vms_storage

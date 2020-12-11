@@ -9,6 +9,12 @@
     when:
       - ocp_vms_util_node
 
+  - name: Determine storage device name
+    import_role: 
+      name: ocp4-solo-utilnode
+      tasks_from: vm-storagedef.yml
+    when: ocp_vms_storage_type == 'nfs'
+
 - hosts: util
   become: true
   gather_facts: false
@@ -240,3 +246,23 @@
       name: ocp4-solo-utilnode
     when:
     - ocp_vms_util_node
+
+  - name: Complete persistent storage related configuration
+    import_role: 
+      name: ocp4-solo-utilnode
+      tasks_from: nfs-storage.yml
+    when:
+    - ocp_vms_util_node
+    - ocp_vms_storage_type == 'nfs'
+
+  - name: Information about this install 
+    vars: 
+      msg: |
+        "Next, execute:"
+        "# ansible-playbook playbooks/03-ocp-init.yaml"
+        "Once the playbook run is complete, ssh into the util vm and run:"
+        "# /usr/local/bin/utilnodecheck"
+        "...for installation status and details."
+    debug: 
+      msg: "{{ msg.split('\n') }}"       
+    tags: debug_info
