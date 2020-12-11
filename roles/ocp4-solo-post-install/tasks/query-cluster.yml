@@ -1,0 +1,101 @@
+---
+# Post OCP4 Solo Lab install - dev/test/research queries
+
+- name: Fetch list of all cluster operators
+  k8s_info:
+    api_version: v1
+    kind: ClusterOperator
+  register: clusteroperators_list
+
+# This output will be immense and show all details
+- name: Print clusteroperators_list dict
+  debug:
+    msg: "Key is {{ item.key}} and value is {{item.value}}"
+  with_dict: "{{ clusteroperators_list }}"
+
+# This returns a single list of the names of each operator that can be looped on.
+- name: What items are in the ClusterOperator LIST?
+  debug:
+    msg: "{{ clusteroperators_list.resources | selectattr('metadata', 'defined') | map(attribute='metadata.name') | list }}"
+
+# This looped list returns the names of each operator in a separate debug msg.
+- name: What items are in the ClusterOperator LIST? loop part 1
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ clusteroperators_list.resources | selectattr('metadata', 'defined') | map(attribute='metadata.name') | list }}"
+
+# This loop provides a dict consisting of the metadata for each operator. What is interesting is the ansible "item" output is in
+# a "json-ish" form, whereas the debug msg prints in yaml format.
+- name: What items are in the ClusterOperator LIST? loop part 2
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ clusteroperators_list.resources | selectattr('metadata', 'defined') | map(attribute='metadata') | list }}"
+
+# For this example, we don't define the loop via a map(attribute='thing') filter, instead we can utilize much more information via
+# using item variable names and filtering via selectattr()
+- name: What items are in the ClusterOperator LIST? loop part 3?
+  debug:
+    msg: "{{ item.metadata.name }} - Available: {{ item.status.conditions | selectattr('type', 'match', '^Available$') | map(attribute='status') | list }}"
+  loop: "{{ clusteroperators_list.resources | selectattr('metadata', 'defined') | list }}"
+
+# In this case, we don't loop at all, instead a list of various details is created via JMESPath query language as a variable
+# applied against our clusteroperators_list dictionary
+- name: What items are in the ClusterOperator LIST? no loop, define variables via JMESPath query 
+  debug:
+    msg: "{{ clusteroperators_list | json_query(my_query) }}"
+  vars:
+    #my_query: "resources[].{Available: status.conditions[?type=='Available'].status|[0], ClusterOperator: metadata.name}"
+    my_query: "resources[].{ClusterOperator: metadata.name, Available: status.conditions[?type=='Available'].status|[0]}"
+
+# Let's switch to working with querying the imageregistry operator cluster config
+- name: Fetch configs.imageregistry.operator.openshift.io/cluster
+  k8s_info:
+    api_version: imageregistry.operator.openshift.io/v1
+    kind: Config
+  register: imageregistry_config_list
+
+# This loop provides a dict consisting of the spec for the imageregistry.operator.openshift.io/cluster config.
+- name: Display imageregistry.operator.openshift.io/cluster config spec
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ imageregistry_config_list.resources | selectattr('spec', 'defined') | map(attribute='spec') | list }}"
+
+# list of spec details via JMESPath query language as a variable
+# applied against our imageregistry_config_list dictionary
+- name: define variables via JMESPath query 
+  debug:
+    msg: "{{ imageregistry_config_list | json_query(my_query) }}"
+  vars:
+    my_query: "resources[].{managementState: spec.storage.managementState, Available: status.conditions[?type=='Available'].status|[0]}"
+
+- name: Test for pvc ==> image-registry-storage
+  debug:
+    msg: "{{ imageregistry_config_list | json_query(my_query) | first }}"
+  vars:
+    my_query: "resources[].{Status: status.conditions[?type=='Available'].message|[0]}"
+
+- name: Set fact for message
+  set_fact:
+    imageregistry_message: "{{ imageregistry_config_list | json_query(my_query) | first }}"
+  vars:
+    my_query: "resources[].{Status: status.conditions[?type=='Available'].message|[0]}"
+
+- name: Check message
+  debug:
+    msg: "{{ imageregistry_message | json_query('Status') }}"
+
+#- name: Fetch a list of projects
+#  k8s_info:
+#    api_version: v1
+#    kind: Namespace
+#  register: projects_list
+
+#- name: Print projects_list dict
+#  debug:
+#    msg: "Key is {{ item.key}} and value is {{item.value}}"
+#  with_dict: "{{ projects_list }}"
+
+# selectattr('stat.exists', 'equalto', 'False') would not correctly select items, so went with a stat attribute that is undefined when not exists
+# loop: "{{ clusteroperators_list.resources | selectattr('metadata.name', 'undefined') | map(attribute='item') | list }}"
+# loop: "{{ clusteroperators_list.resources | list }}"
+     

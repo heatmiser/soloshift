@@ -1,0 +1,7 @@
+---
+# defaults file for ocp4-solo-post-install
+
+# NFS Provisioner namespace
+ocp_nfs_ext_provision_namespace: openshift-nfs-storage
+
+ocp_nfs_ext_provision_github_url: https://raw.githubusercontent.com/kubernetes-sigs/nfs-subdir-external-provisioner/master/deploy/

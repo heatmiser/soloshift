@@ -1,0 +1,27 @@
+---
+# Post OCP4 Solo Lab install - user env vars
+
+- name: ansible-playbook pwd
+  run_once: True
+  set_fact:
+    ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
+  failed_when: ansible_playbook_pwd == ''
+
+- name: current local user
+  run_once: True
+  set_fact:
+    ansible_local_user: "{{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True) | d(lookup('env', 'USER'), True) |  d(lookup('env', 'user'), True) |  d(lookup('env', 'LOGNAME'), True) }}"
+  failed_when: ansible_local_user == ''
+
+- name: current local group
+  run_once: True
+  set_fact:
+    ansible_local_group: "{{ lookup('pipe', 'id -gn') }}"
+  failed_when: ansible_local_group == ''
+
+- name: current user home dir
+  run_once: True
+  set_fact:
+    ansible_user_home: "{{ lookup('env', 'HOME') }}"
+  failed_when: ansible_user_home == ''
+   

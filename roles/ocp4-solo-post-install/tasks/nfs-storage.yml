@@ -1,0 +1,186 @@
+---
+# Post OCP4 Solo Lab install - external NFS provisioner configuration
+
+- name: Create NFS Provisioner artifacts directory
+  file:
+    path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner"
+    state: directory
+    mode: 0755
+
+- name: Pull NFS Provisioner manifests
+  get_url:
+    url: "{{ ocp_nfs_ext_provision_github_url }}{{ item }}"
+    dest: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner"
+    mode: '0440'
+  loop:
+    - rbac.yaml
+    - deployment.yaml
+    - class.yaml
+
+# Update manifests to use UTIL_IP, proper NFS dirs, proper NAMESPACE, and custom class name
+- name: Update rbac.yaml
+  block:
+    - name: >-
+        sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> rbac.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/rbac.yaml"
+        regexp: >-
+          namespace:.*
+        replace: >-
+          namespace: '{{ ocp_nfs_ext_provision_namespace }}'
+
+- name: Update deployment.yaml
+  block:
+    - name: >-
+        sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> deploymwnt.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
+        regexp: >-
+          namespace:.*
+        replace: >-
+          namespace: '{{ ocp_nfs_ext_provision_namespace }}'
+    
+    - name: >-
+        sed replace ==> s/10.10.10.60/$UTIL_IP/g ==> deploymwnt.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
+        regexp: >-
+          10.10.10.60
+        replace: >-
+          '{{ util.ipaddr }}' 
+
+    - name: >-
+        sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> deploymwnt.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
+        regexp: >-
+          fuseim.*
+        replace: >-
+          storage.io/nfs
+
+    - name: >-
+        sed replace ==> s/\/ifs\/kubernetes/\/mnt\/nfs\/ocp/g ==> deploymwnt.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
+        regexp: >-
+          /ifs/kubernetes
+        replace: >-
+          /mnt/nfs/ocp
+
+- name: Update class.yaml
+  block:
+    - name: >-
+        sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> class.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/class.yaml"
+        regexp: >-
+          fuseim.*
+        replace: >-
+          storage.io/nfs
+
+- name: Create the NFS External Provisioner namespace
+  k8s:
+    name: "{{ ocp_nfs_ext_provision_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Apply "openshift.io/cluster-monitoring=true" label to "{{ ocp_nfs_ext_provision_namespace }}" namespace
+  command: >-
+    oc label namespace '{{ ocp_nfs_ext_provision_namespace }}' "openshift.io/cluster-monitoring=true"
+  register: oc_label_namespace_result
+  ignore_errors: true
+
+- name: Fail if "oc label apply" does not succeed
+  fail:
+    msg:
+      - "stdout: {{ oc_label_namespace_result.stdout }}"
+      - "stderr: {{ oc_label_namespace_result.stderr }}"
+  when: >
+    '"already has a value (true)" not in oc_label_namespace_result.stderr or
+    "labeled" not in oc_label_namespace_result.stdout' 
+  failed_when: >
+    ("already has a value (true)" not in oc_label_namespace_result.stderr and oc_label_namespace_result.rc == 1) or
+    ("labeled" not in oc_label_namespace_result.stdout and oc_label_namespace_result.rc == 0)
+
+- name: stdout for "oc label namespace"
+  debug:
+    msg: "{{ oc_label_namespace_result.stdout }}"
+
+- name: Apply RBAC manifest ==> ServiceAccount, ClusterRole, ClusterRoleBinding, Role, RoleBinding
+  k8s:
+    state: present
+    src: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/rbac.yaml"
+    wait: yes
+
+- name: Add security context constraint to service account nfs-client-provisioner in "{{ ocp_nfs_ext_provision_namespace }}" project
+  command: "oc adm policy add-scc-to-user hostmount-anyuid system:serviceaccount:{{ ocp_nfs_ext_provision_namespace }}:nfs-client-provisioner"
+  register: oc_adm_policy_result
+  failed_when: '"added" not in oc_adm_policy_result.stdout'
+
+- name: Apply StorageClass manifest
+  k8s:
+    state: present
+    src: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/class.yaml"
+    wait: yes
+
+- name: Apply Deployment manifest
+  k8s:
+    state: present
+    src: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
+    wait: yes
+
+- name: Set class as cluster-wide default
+  k8s:
+    state: present
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: managed-nfs-storage
+        annotations:
+          storageclass.kubernetes.io/is-default-class: "true"
+    wait: yes
+
+- name: Pause for 10 seconds... 
+  pause:
+    seconds: 10
+
+- name: Fetch configs.imageregistry.operator.openshift.io/cluster to determine registry status
+  k8s_info:
+    api_version: imageregistry.operator.openshift.io/v1
+    kind: Config
+  register: imageregistry_config_list
+
+- name: Set fact for registry status
+  set_fact:
+    imageregistry_status: "{{ imageregistry_config_list | json_query(my_query) | first | json_query('Status') }}"
+  vars:
+    my_query: "resources[].{Status: status.conditions[?type=='Available'].message|[0]}"
+
+- name: Check registry status
+  debug:
+    msg: "Registry status: {{ imageregistry_status }}"
+
+- name: Pause for 45 seconds to allow NFS storage configuration to settle
+  pause:
+    seconds: 45
+  when: >-
+    "The registry is ready" not in imageregistry_status
+
+- name: Set Image Registry to use NFS storage
+  k8s:
+    state: present
+    definition:
+      apiVersion: imageregistry.operator.openshift.io/v1
+      kind: Config
+      metadata:
+        name: cluster
+      spec:
+        managementState: Managed
+        storage:
+          pvc:
+            claim: ""
+    wait: yes
+  when: >-
+    "The registry is ready" not in imageregistry_status

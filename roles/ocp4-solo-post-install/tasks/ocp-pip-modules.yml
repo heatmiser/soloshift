@@ -1,0 +1,14 @@
+---
+# Post OCP4 Solo Lab install - OCP pip modules
+
+- name: Install kubernetes pip module for Python 3, using the 'pip3' executable.
+  pip:
+    name: kubernetes
+    executable: pip3
+    extra_args: --user
+
+- name: Install openshift pip module for Python 3, using the 'pip3' executable.
+  pip:
+    name: openshift
+    executable: pip3
+    extra_args: --user
