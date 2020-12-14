@@ -7,7 +7,9 @@
       - xfsprogs
     state: present
   when:
-    - ansible_distribution == 'Fedora'
+    - ansible_distribution == 'Fedora' or
+      (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8) or
+      (ansible_distribution == 'CentOS' and ansible_distribution_major_version|int >= 8)
 
 - name: NFS firewall exceptions
   firewalld:
