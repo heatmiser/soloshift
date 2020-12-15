@@ -7,7 +7,7 @@ While single system installation of OpenShift 4 is also made possible via [Red H
 
 # Cluster components
 
-By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three master nodes and two worker nodes, with the zero representing optional infrastructure nodes.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, and haproxy services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
+By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three master nodes and two worker nodes, with the zero representing optional infrastructure nodes.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, haproxy, and NFS storage services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
 
 Requirements
 ------------
@@ -84,7 +84,7 @@ to `inventory/group_vars/all/my_vars.yaml`
 
 Next, edit `inventory/group_vars/all/my_vars.yaml`
 
-SoloShift employs a utility VM to run the OpenShift 4 User Provided Infrastructure installation, as well as to provide base infrastructure services, such as DHCP, tftp, DNS, matchbox, and haproxy.
+SoloShift employs a utility VM to run the OpenShift 4 User Provided Infrastructure installation, as well as to provide base infrastructure services, such as DHCP, tftp, DNS, matchbox, haproxy, and NFS storage.
 
 If utilizing RHEL for the utility VM, choose either pair of:
 
@@ -112,6 +112,7 @@ or
 * `ocp_vms_master_count`: 3
 * `ocp_vms_infra_count`: 0
 * `ocp_vms_worker_count`: 2
+* `ocp_vms_storage_type`: nfs - default external storage type, set to false to turn it off
 * `ocp_vms_openshift_pullsecret_file`: pull-secret.txt - download from https://cloud.redhat.com/openshift/install/metal/user-provisioned
 
 By default, SoloShift deploys VMs utilizing sparse backing files.  When creating VMs, if the size of the requested backing file is greater than the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`, the deploy automation will fail. If you would like to implement storage overcommit in order to bypass this limitation, add the following line to `inventory/group_vars/all/my_vars.yaml`:
@@ -127,10 +128,12 @@ Deploy All-in-One OCP4
 
 Place `pull-secret.txt` in the root of the soloshift directory.
 
-Download your VM image of choice (RHEL7 KVM qcow2 guest image, for example) and place it in the directory defined by `ocp_vms_libvirt_images_location`. Then, update `ocp_vms_base_image` with the name of the image.  If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
+Download your VM image of choice (RHEL8 KVM qcow2 guest image, for example) and place it in the directory defined by `ocp_vms_libvirt_images_location`. Then, update `ocp_vms_base_image` with the name of the image. If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
 
 If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the various VM nodes, edit
-`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding.  The default values are as low as you should go for successful installations. A minumum base hypervisor RAM of 32GB is required (laptop installation was one of the original goals for soloshift, however, the requirement for 3 master nodes has raised the miminum recommended RAM beyond the capabilities of most laptops).
+`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding. The default values are as low as you should go for successful installations. A minimum base hypervisor RAM of 32GB is required, however, there is potential for VMs to be stopped if the OOM killer is enabled on the hypervisor. Laptop installation was one of the original goals for soloshift, however, the requirement for 3 master nodes has raised the miminum recommended RAM beyond the capabilities of most laptops. 48GB of RAM is more likely to ensure sucess, with 64GB RAM being a more realistic minimum RAM specification.
+
+Now, continue to install required Ansible roles and execute OCP deploy playbooks:
 
 `(hypervisor)# ansible-galaxy install -p ./roles -r requirements.yaml`
 
@@ -142,17 +145,27 @@ If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the v
 
 `(hypervisor)# ansible-playbook playbooks/03-ocp-init.yaml`
 
-Either access the util vm console via virt-viewer or use another shell and ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your user's .ssh directory prefixed with whatever was set for `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in to the util node as root.
+> **NOTE**: While all playbooks provide output to the console to convey overall playbook progress, the 03-ocp-init.yaml playbook has additional installation log monitoring tasks that will relay the status of the deployment.
 
-After logging in to the util node as root, execute:
+You can also view the status of the bootstrap and install process as nodes come and go by checking out the haproxy status page at http://192.168.8.8:9000
 
-`(util)# openshift-install --dir=/root/ocp4upi wait-for bootstrap-complete --log-level debug`
+Eventually, you should see a debug message in the shell where the 03-ocp-init.yaml playbook is running: "Install complete!"
 
-> **NOTE**: While the 03-ocp-init.yaml playbook is running, eventually you will see a message stating "It is now safe to remove the bootstrap resources". If you would like to conserve space and system resources (highly recommended at this point in the deployment on systems with 16GB RAM), back on the hypervisor you can open another shell, cd to the root of the soloshift working directory and execute the following, even while the 03-ocp-init.yaml playbook is still running:
+At this point, OpenShift storage needs to be finalized. Currently two options are available: external NFS storage (default) or simple ephemeral storage.
 
-`(hypervisor)# ansible-playbook playbooks/eject-bootstrap.yaml`
+| External NFS Storage |
+|:-:|
+If you opted for utilizing the default option, external NFS storage on the util node, then execute the following playbook:
 
-Eventually, you should see a debug message in the shell where the 03-ocp-init.yaml playbook is running: "Complete storage setup now..."
+`(hypervisor)# ansible-playbook playbooks/04-ocp-nfs-storage.yaml`
+
+| Simple Ephemeral Storage |
+|:-:|
+Or if simple, ephemeral storage is desired, prior to deploying the cluster, set the variable `ocp_vms_storage_type` to `false` and then proceed with the following steps once the 03-ocp-init.yaml playbook has finalized with the "Install complete!" message.
+
+Either access the util vm console via virt-viewer or use another shell and ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your user's .ssh directory prefixed with whatever was set for `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in to the util node as root. For example, from a shell on the hypervisor (`ocp_vms_openshift_subdomain` set to `ocp4` and default `ocp_vms_net_cidr`):
+
+`(hypervisor)# ssh -i ~/.ssh/ocp4_id_ecdsa root@192.168.8.8`
 
 At this point, patch the image registry to use local storage:
 
@@ -167,18 +180,15 @@ At this point, patch the image registry to use local storage:
 
 If you receive a message like "cluster does not exist" or "cluster not found", wait a bit and rerun.
 
-`(util)# openshift-install --dir=/root/ocp4upi wait-for install-complete --log-level debug`
+Final Steps
+------------
 
-And finally, watch for the "Install complete!" message, which will be followed by auth creds to log into the console.
+Once either storage setup option has been completed, the installation is complete. Edit your hypervisor's /etc/hosts file to include some of the endpoints utilized by OpenShift.  For example if using all defaults, your /etc/hosts entries would look like this:
 
-You can also view the status of the bootstrap process as nodes come and go by checking out the haproxy status page at http://192.168.8.8:9000
-
-Once the installation is complete, edit your hypervisor's /etc/hosts file to include some of the endpoints utilized by OpenShift.  For example if using all defaults, your /etc/hosts entries would look like this:
-
-	192.168.8.8 console-openshift-console.apps.ocp45.local.dc
-	192.168.8.8 oauth-openshift.apps.ocp45.local.dc
-	192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp45.local.dc
-	192.168.8.8 grafana-openshift-monitoring.apps.ocp45.local.dc
+	192.168.8.8 console-openshift-console.apps.ocp46.local.dc
+	192.168.8.8 oauth-openshift.apps.ocp46.local.dc
+	192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp46.local.dc
+	192.168.8.8 grafana-openshift-monitoring.apps.ocp46.local.dc
 
 In addition, you'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works. See below for additional instructions for utilizing [xip.io](http://xip.io/) to enable route name resolution without additional hosts file entries.
 
