@@ -1,5 +1,5 @@
 ---
-- name: NFS, LVM2 and XFSprogs package installation on Fedora
+- name: NFS, LVM2 and XFSprogs package installation on Fedora, RHEL 8, and CentOS 8
   dnf:
     name:
       - nfs-utils
@@ -9,6 +9,15 @@
   when:
     - ansible_distribution == 'Fedora' or
       (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8) or
+      (ansible_distribution == 'CentOS' and ansible_distribution_major_version|int >= 8)
+
+- name: python3-pip on CentOS 8
+  dnf:
+    name:
+      - python3-pip
+    state: present
+  when:
+    - (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8) or
       (ansible_distribution == 'CentOS' and ansible_distribution_major_version|int >= 8)
 
 - name: NFS firewall exceptions
