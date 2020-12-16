@@ -12,3 +12,13 @@
     import_role:
       name: ocp4-solo-post-install
       tasks_from: nfs-storage
+
+  - name: Information about this install 
+    vars: 
+      msg: |
+        "Once the playbook run is complete, ssh into the util vm and run:"
+        "# /usr/local/bin/utilnodecheck"
+        "...for installation status and details."
+    debug: 
+      msg: "{{ msg.split('\n') }}"       
+    tags: debug_info
