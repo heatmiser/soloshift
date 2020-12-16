@@ -184,3 +184,26 @@
     wait: yes
   when: >-
     "The registry is ready" not in imageregistry_status
+
+- name: Re-verify registry status block
+  block:
+    - name: Pause for 45 seconds to allow Image Registry Operator cluster config to update
+      pause:
+        seconds: 45
+    - name: Fetch configs.imageregistry.operator.openshift.io/cluster to determine registry status
+      k8s_info:
+        api_version: imageregistry.operator.openshift.io/v1
+        kind: Config
+      register: imageregistry_config_list
+
+    - name: Set fact for registry status
+      set_fact:
+        imageregistry_status: "{{ imageregistry_config_list | json_query(my_query) | first | json_query('Status') }}"
+      vars:
+        my_query: "resources[].{Status: status.conditions[?type=='Available'].message|[0]}"
+
+    - name: Check registry status
+      debug:
+        msg: "Registry status: {{ imageregistry_status }}"
+  when: >-
+    "The registry is ready" not in imageregistry_status
