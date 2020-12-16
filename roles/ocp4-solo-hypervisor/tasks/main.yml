@@ -59,6 +59,14 @@
   when:
       - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
 
+- name: Update all packages
+  yum:
+    name: '*'
+    state: latest
+  register: yumup_code
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+
 - block:
   - name: Configure libvirtd.conf - listen_tls = 0
     lineinfile:
@@ -91,6 +99,17 @@
       line: LIBVIRTD_ARGS="--listen"
     when:
       - ansible_distribution == 'Fedora'
+
+  - name: "Starting {{ item }} service on CentOS/RHEL 8"
+    service:
+      name: "{{ item }}"
+      enabled: yes
+      state: started
+    with_items:
+      - firewalld
+      - libvirtd
+    when:
+      - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
 
   - name: enable and start the libvirtd TCP socket - Fedora 31
     service:
