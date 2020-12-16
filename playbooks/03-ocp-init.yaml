@@ -85,10 +85,6 @@
       search_regex: Working\ towards\ 4\.(.*)\ 9(.*)\%\ complete
       timeout: 2000
       sleep: 10
-
-  - debug:
-      msg:
-      - Complete storage setup now...
  
   - name: >
       Wait until the string "Install complete!" is in the file .openshift_install.log before continuing...
@@ -97,3 +93,17 @@
       search_regex: Install complete\!
       timeout: 2000
       sleep: 10
+
+  - name: Information about this install 
+    vars: 
+      msg: |
+        "Install complete!"
+        "On the util node, check the last section of"
+        "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+        "for cluster login credentials."
+        "If external NFS storage is desired, next execute:"
+        "# ansible-playbook playbooks/04-ocp-nfs-storage.yaml"
+    debug: 
+      msg: "{{ msg.split('\n') }}"       
+    tags: debug_info
+ 
