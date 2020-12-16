@@ -4,6 +4,8 @@
   set_fact:
     ansible_playbook_pwd: "{{ lookup('env', 'PWD') }}"
   failed_when: ansible_playbook_pwd == ''
+  tags:
+    - template
 
 - name: current local user
   run_once: True
@@ -12,6 +14,7 @@
   failed_when: ansible_local_user == ''
   tags:
     - ssh_key
+    - template
 
 - name: current local group
   run_once: True
@@ -20,6 +23,7 @@
   failed_when: ansible_local_group == ''
   tags:
     - ssh_key
+    - template
 
 - name: current local user home
   run_once: True
@@ -28,6 +32,7 @@
   failed_when: ansible_local_home == ''
   tags:
     - ssh_key
+    - template
 
 - name: User .ssh dir is present
   file:
@@ -69,18 +74,21 @@
   register: bipropstemp_1
   tags:
     - ocp_vms_base_image_props
+    - template   
 
 - name: "Probe VM base image for OS release info - out to {{ bipropstemp_1.path }}"
   shell: >
     virt-cat -a {{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image }} /etc/os-release > {{ bipropstemp_1.path }}; chmod a+r {{ bipropstemp_1.path }}
   tags:
     - ocp_vms_base_image_props
+    - template    
 
 - name: Set VM image OS distribution
   set_fact:
     ocp_vms_base_image_distro: "{{ lookup('ini', 'ID type=properties file={{ bipropstemp_1.path }}') | regex_replace('\\\"', '') }}"
   tags:
     - ocp_vms_base_image_props
+    - template
 
 - name: Query props file for VM image OS distribution version and set
   set_fact:
@@ -111,6 +119,8 @@
     path: "{{ bipropstemp_1.path }}"
     state: absent
   when: bipropstemp_1.path is defined
+  tags:
+    - template
 
 - name: Create utility machine disks
   # Create a disk size that is 1GB more than expected to avoid partitioning issues.
@@ -219,8 +229,6 @@
     dest: /tmp/ocp_vms_utility.cfg
     force: True
   when: not ocp_vms_preprovisioned
-  tags:
-    - template
 
 - name: "Generate utility ifcfg mac addr and set fact"
   set_fact:
