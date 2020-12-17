@@ -191,6 +191,16 @@
     - libvirtd
     - ksm
     - ksmtuned
+    - tuned
+
+- name: check tuned profile
+  command: tuned-adm active
+  register: tuned_adm
+  changed_when: False
+
+- name: set tuned profile ==> virtual-host
+  command: tuned-adm profile virtual-host
+  when: "'virtual-host' not in tuned_adm.stdout"
 
 - name: Install libselinux-python package - CentOS/RHEL 7
   yum:
