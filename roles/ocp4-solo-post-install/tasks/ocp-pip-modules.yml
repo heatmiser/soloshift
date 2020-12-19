@@ -1,12 +1,11 @@
 ---
 # Post OCP4 Solo Lab install - OCP pip modules
 
-- name: Install kubernetes, openshift, jmespath pip modules for Python 3, using the 'pip3' executable.
+- name: Install kubernetes and openshift modules for Python 3, using the 'pip3' executable.
   pip:
     name: "{{ item }}"
     executable: pip3
     extra_args: --user
   with_items:
-    - kubernetes
-    - openshift
-    - jmespath
+    - kubernetes==11.0.0
+    - openshift==0.11.2

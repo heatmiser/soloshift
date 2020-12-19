@@ -1,5 +1,20 @@
 #vim: set ft=ansible:
 ---
+- hosts: localhost
+  connection: local
+  become: true
+  # gather_facts: false
+  tasks:
+  - name: Install jmespath pip modules for Python 3, using the 'pip3' executable.
+    pip:
+      name: "{{ item }}"
+      executable: pip3
+      extra_args: --user
+    with_items:
+      - jmespath==0.10.0
+    when:
+      - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
+
 - hosts: util
   become: true
   tasks:
