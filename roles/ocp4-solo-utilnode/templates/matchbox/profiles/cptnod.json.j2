@@ -13,16 +13,16 @@
 "console=tty0",
 "console=ttyS0",
 "coreos.inst=yes",
-{% if ocp_vms_openshift_release < 4.6 %}
+{% if ocp_vms_openshift_release_minor_version | int < 6 %}
 "coreos.inst.install_dev=sda",
 {% endif %}
-{% if ocp_vms_openshift_release >= 4.6 %}
+{% if ocp_vms_openshift_release_minor_version | int >= 6 %}
 "coreos.inst.install_dev=/dev/sda",
 {% endif %}
-{% if ocp_vms_openshift_release < 4.6 %}
+{% if ocp_vms_openshift_release_minor_version | int < 6 %}
 "coreos.inst.image_url=http://{{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}:8080/assets/{{ rhcosmetalbiosfile }}",
 {% endif %}
-{% if ocp_vms_openshift_release >= 4.6 %}
+{% if ocp_vms_openshift_release_minor_version | int >= 6 %}
 "coreos.live.rootfs_url=http://{{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}:8080/assets/{{ rhcosliverootfsfile }}",
 {% endif %}
 "coreos.inst.ignition_url=http://{{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}:8080/ignition?mac=${mac:hexhyp}"
