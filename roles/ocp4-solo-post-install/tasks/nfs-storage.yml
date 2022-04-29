@@ -32,7 +32,7 @@
 - name: Update deployment.yaml
   block:
     - name: >-
-        sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> deploymwnt.yaml
+        sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> deployment.yaml
       replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
@@ -41,16 +41,16 @@
           namespace: '{{ ocp_nfs_ext_provision_namespace }}'
     
     - name: >-
-        sed replace ==> s/10.10.10.60/$UTIL_IP/g ==> deploymwnt.yaml
+        sed replace ==> s/10.3.243.101/$UTIL_IP/g ==> deployment.yaml
       replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
-          10.10.10.60
+          10.3.243.101
         replace: >-
           '{{ util.ipaddr }}' 
 
     - name: >-
-        sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> deploymwnt.yaml
+        sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> deployment.yaml
       replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
@@ -59,7 +59,7 @@
           storage.io/nfs
 
     - name: >-
-        sed replace ==> s/\/ifs\/kubernetes/\/mnt\/nfs\/ocp/g ==> deploymwnt.yaml
+        sed replace ==> s/\/ifs\/kubernetes/\/mnt\/nfs\/ocp/g ==> deployment.yaml
       replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
@@ -77,6 +77,15 @@
           fuseim.*
         replace: >-
           storage.io/nfs
+    
+    - name: >-
+        sed replace ==> s/nfs-client/managed-nfs-storage/g ==> class.yaml
+      replace:
+        path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/class.yaml"
+        regexp: >-
+          name: nfs-client
+        replace: >-
+          name: managed-nfs-storage
 
 - name: Create the NFS External Provisioner namespace
   k8s:
