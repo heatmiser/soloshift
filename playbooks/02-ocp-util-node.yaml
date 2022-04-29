@@ -241,6 +241,13 @@
     when:
       ocp_vms_openshift_release == "pre-release"
 
+  - name: "Set OpenShift minor version as variable/fact"
+    set_fact:
+      ocp_vms_openshift_release_minor_version: "{{ ocp_vms_openshift_release | regex_findall('\\d+') | last | int }}"
+
+  - debug:
+      var: ocp_vms_openshift_release_minor_version
+
   - name: "Configure utility node"
     import_role:
       name: ocp4-solo-utilnode
