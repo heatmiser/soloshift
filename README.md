@@ -104,7 +104,7 @@ or
 * `redhat_subscription_pool_regex`: If utilizing username/password, supply a regex to match on the desired pool. For example, to match on a subscription pool named Red Hat Enterprise Server, use "^Red Hat Enterprise Server$"
 
 * `ocp_vms_base_image`: rhel-server-7.8-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads --also, Fedora or CentOS cloud KVM qcow2 images can be used as well
-* `ocp_vms_openshift_release`: 4.6 - OpenShift version to deploy; 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 or pre-release
+* `ocp_vms_openshift_release`: 4.9 - OpenShift version to deploy; 4.1, 4.2, ..., 4.9 or pre-release (4.10 is in dev)
 * `ocp_vms_openshift_subdomain`: ocp4 - name for top level DNS sub-domain
 * `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
 * `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
