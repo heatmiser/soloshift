@@ -5,11 +5,11 @@ redhat_subscription_org_id:
 redhat_subscription_activationkey:
 redhat_subscription_pool_regex: ^$
 ocp_vms_preprovisioned: True
-ocp_vms_base_image: rhel-8.2-update-2-x86_64-kvm.qcow2
+ocp_vms_base_image: rhel-8.5-update-2-x86_64-kvm.qcow2
 #ocp_vms_base_image: CentOS-Stream-GenericCloud-8-20201019.1.x86_64.qcow2
 #ocp_vms_base_image: Fedora-Cloud-Base-33-1.2.x86_64.qcow2
-ocp_vms_openshift_release: 4.6
-ocp_vms_openshift_subdomain: ocp46
+ocp_vms_openshift_release: "4.10"
+ocp_vms_openshift_subdomain: ocp410
 ocp_vms_openshift_rootdomain: local.dc
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images/
 ocp_vms_net_cidr: 192.168.8.0/24
