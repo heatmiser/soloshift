@@ -82,9 +82,11 @@
       Wait until the string "Working towards 4.x.y: 9z% complete" is in the file .openshift_install.log before continuing...
     wait_for:
       path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: Working\ towards\ 4\.(.*)\ 9(.*)\%\ complete
+      search_regex: >-
+        Working towards 4.(.*)9(\d)% complete
       timeout: 2000
       sleep: 10
+    tags: regex1
  
   - name: >
       Wait until the string "Install complete!" is in the file .openshift_install.log before continuing...
@@ -93,6 +95,7 @@
       search_regex: Install complete\!
       timeout: 2000
       sleep: 10
+    tags: regex1
 
   - name: Information about this install 
     vars: 
