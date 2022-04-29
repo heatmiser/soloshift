@@ -446,6 +446,11 @@
   tags:
     - noodlin
 
+- name: Set rhcos metal bios file name as fact
+  set_fact:
+    rhcosmetalbiosfile: None
+  when: ocp_vms_openshift_release is version('4.6', '>=')
+
 - block:
   - name: noodle for rhcos live-rootfs file - RHOCP 4.6 and later
     script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-rootfs\\\\. {{ ocp_vms_openshift_release }}"
