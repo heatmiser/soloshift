@@ -21,7 +21,7 @@ echo ""
 echo "======================"
 echo "DNS Lookup for Masters"
 echo "======================"
-{% for m in masters %}
+{% for m in controls %}
 echo ""
 echo "{{ m.name }}.{{ dns.clusterid }}.{{ dns.domain }}"
 echo "-------------------------------------------------"
