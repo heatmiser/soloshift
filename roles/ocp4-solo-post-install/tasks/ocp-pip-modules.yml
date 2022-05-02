@@ -1,7 +1,7 @@
 ---
 # Post OCP4 Solo Lab install - OCP pip modules
 
-- name: Install kubernetes and openshift modules for Python 3, using the 'pip3' executable.
+- name: Install kubernetes and openshift modules for Python 3, using the 'pip3' executable, OCP <= 4.9
   pip:
     name: "{{ item }}"
     executable: pip3
@@ -9,3 +9,14 @@
   with_items:
     - kubernetes==11.0.0
     - openshift==0.11.2
+  when: ocp_vms_openshift_release is version('4.9', '<=')
+
+- name: Install kubernetes and openshift modules for Python 3, using the 'pip3' executable, OCP > 4.9
+  pip:
+    name: "{{ item }}"
+    executable: pip3
+    extra_args: --user
+  with_items:
+    - kubernetes==22.6.0
+    - openshift==0.13.1
+  when: ocp_vms_openshift_release is version('4.9', '>') or ocp_vms_openshift_prerelease is defined
