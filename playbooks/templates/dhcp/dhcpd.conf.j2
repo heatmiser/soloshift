@@ -34,7 +34,7 @@ include                 "/etc/rndc.key";
         	range {{ dhcp.poolstart }} {{ dhcp.poolend }};
 		# Static entries
 		host {{ bootstrap.name }} { hardware ethernet {{ bootstrap.macaddr }}; fixed-address {{ bootstrap.ipaddr }}; }
-{% for m in masters %}
+{% for m in controls %}
 		host {{ m.name }} { hardware ethernet {{ m.macaddr }}; fixed-address {{ m.ipaddr }}; option host-name "{{ m.name }}.{{ dns.clusterid }}.{{ dns.domain }}";}
 {% endfor %}
 {% if infras|length > 0 %}

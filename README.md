@@ -7,7 +7,7 @@ While single system installation of OpenShift 4 is also made possible via [Red H
 
 # Cluster components
 
-By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three master nodes and two worker nodes, with the zero representing optional infrastructure nodes.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, haproxy, and NFS storage services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
+By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three control nodes and two worker nodes, with the zero representing optional infrastructure nodes.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, haproxy, and NFS storage services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
 
 Requirements
 ------------
@@ -109,7 +109,7 @@ or
 * `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
 * `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
 * `ocp_vms_net_cidr`: 192.168.8.0/24 - internal subnet for cluster to use
-* `ocp_vms_master_count`: 3
+* `ocp_vms_control_count`: 3
 * `ocp_vms_infra_count`: 0
 * `ocp_vms_worker_count`: 2
 * `ocp_vms_storage_type`: nfs - default external storage type, set to false to turn it off
@@ -119,7 +119,7 @@ By default, SoloShift deploys VMs utilizing sparse backing files.  When creating
 
 * `ocp_vms_storage_overcommit: True`
 
-> **NOTE**: A basic installation utilizing soloshift (with default values) to deploy an OpenShift 4 cluster comprised of 1 master, 1 infrastructure, and 1 worker, with one utility node will require just under 40GB of space to complete the installation. Additional space will be required over time as the cluster is used.
+> **NOTE**: A basic installation utilizing soloshift (with default values) to deploy an OpenShift 4 cluster comprised of 1 control, 1 infrastructure, and 1 worker, with one utility node will require just under 40GB of space to complete the installation. Additional space will be required over time as the cluster is used.
 
 > **NOTE**: Storage overcommit can potentially lead to completely filling the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`. Be sure to keep this in mind and monitor overall volume capacity.
 
@@ -131,7 +131,7 @@ Place `pull-secret.txt` in the root of the soloshift directory.
 Download your VM image of choice (RHEL8 KVM qcow2 guest image, for example) and place it in the directory defined by `ocp_vms_libvirt_images_location`. Then, update `ocp_vms_base_image` with the name of the image. If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
 
 If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the various VM nodes, edit
-`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding. The default values are as low as you should go for successful installations. A minimum base hypervisor RAM of 32GB is required, however, there is potential for VMs to be stopped if the OOM killer is enabled on the hypervisor. Laptop installation was one of the original goals for soloshift, however, the requirement for 3 master nodes has raised the miminum recommended RAM beyond the capabilities of most laptops. 48GB of RAM is more likely to ensure sucess, with 64GB RAM being a more realistic minimum RAM specification.
+`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding. The default values are as low as you should go for successful installations. A minimum base hypervisor RAM of 32GB is required, however, there is potential for VMs to be stopped if the OOM killer is enabled on the hypervisor. Laptop installation was one of the original goals for soloshift, however, the requirement for 3 control nodes has raised the miminum recommended RAM beyond the capabilities of most laptops. 48GB of RAM is more likely to ensure sucess, with 64GB RAM being a more realistic minimum RAM specification.
 
 Now, continue to install required Ansible roles and execute OCP deploy playbooks:
 
@@ -192,7 +192,7 @@ Once either storage setup option has been completed, the installation is complet
 
 In addition, you'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works. See below for additional instructions for utilizing [xip.io](http://xip.io/) to enable route name resolution without additional hosts file entries.
 
-If you plan on shutting down your OpenShift 4 cluster from time to time (laptop, cloud deployment, educational/lab), we'll need to create a DaemonSet that pulls down the same service account token bootstrap credential used on all the non-master nodes in the cluster and then delete a couple of key, related secrets. This will trigger the Cluster Operators to re-create the CSR signer secrets used to sign the kubelet client certificate CSRs when the cluster starts back up. [Follow this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) for a detailed background explanation as to why we need to do this.
+If you plan on shutting down your OpenShift 4 cluster from time to time (laptop, cloud deployment, educational/lab), we'll need to create a DaemonSet that pulls down the same service account token bootstrap credential used on all the non-control nodes in the cluster and then delete a couple of key, related secrets. This will trigger the Cluster Operators to re-create the CSR signer secrets used to sign the kubelet client certificate CSRs when the cluster starts back up. [Follow this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) for a detailed background explanation as to why we need to do this.
 
 Execute the following steps, again, while logged in to the util node as root:
 
@@ -218,4 +218,4 @@ Enjoy your OpenShift 4 cluster environment!  When you're ready to tear everythin
 Utilizing xip.io for application base subdomain name resolution
 ------------
 
-[Route resolution via xip.io](https://github.com/heatmiser/soloshift/blob/master/route_resolution.md)
+[Route resolution via xip.io](https://github.com/heatmiser/soloshift/blob/main/route_resolution.md)

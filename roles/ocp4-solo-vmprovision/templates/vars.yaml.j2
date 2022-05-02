@@ -23,8 +23,8 @@ bootstrap:
   name: "{{ ocp_vms_bootstrap_node[0].name }}"
   ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(9) }}"
   macaddr: "{{ lookup('ini', '{{ ocp_vms_bootstrap_node[0].name }}.mac section=bootstrap file=/tmp/vm_mac_addrs.ini') }}"
-masters:
-{% for host, macaddr in master_dict.items() %}
+controls:
+{% for host, macaddr in control_dict.items() %}
   - name: "{{ host }}"
     ipaddr: "{{ ocp_vms_net_cidr | next_nth_usable(9 +loop.index) }}"
     macaddr: "{{ macaddr }}"

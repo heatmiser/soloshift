@@ -14,7 +14,7 @@ ocp_vms_openshift_rootdomain: local.dc
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images/
 ocp_vms_net_cidr: 192.168.8.0/24
 ocp_vms_net_nat: True
-ocp_vms_master_count: 3
+ocp_vms_control_count: 3
 ocp_vms_infra_count: 0
 ocp_vms_worker_count: 2
 ocp_vms_openshift_pullsecret_file: pull-secret.txt

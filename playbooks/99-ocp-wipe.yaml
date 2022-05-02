@@ -75,12 +75,12 @@
     - "{{ bootstrap }}"
     ignore_errors: yes
 
-  - name: stop master vm(s)
+  - name: stop control vm(s)
     virt:
       name: "{{ dns.clusterid }}.{{ item.name }}"
       state: destroyed
     with_items:
-    - "{{ masters }}"
+    - "{{ controls }}"
 
   - name: stop infra vm(s)
     virt:
@@ -160,19 +160,19 @@
     tags:
     - vm_image_path_dict
 
-  - name: start master VM image path ini section
+  - name: start control VM image path ini section
     shell: >
       echo "" >> /tmp/vm_img_path.ini;
-      echo "[masters]" >> /tmp/vm_img_path.ini
+      echo "[controls]" >> /tmp/vm_img_path.ini
     tags:
     - vm_image_path_dict
 
-  - name: record master VM image path
+  - name: record control VM image path
     shell: >
       imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
       echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
     with_items:
-    - "{{ masters }}"
+    - "{{ controls }}"
     tags:
     - vm_image_path_dict
 
@@ -227,12 +227,12 @@
     - "{{ bootstrap }}"
     ignore_errors: yes
 
-  - name: undefine master vm(s)
+  - name: undefine control vm(s)
     virt:
       name: "{{ dns.clusterid }}.{{ item.name }}"
       command: undefine
     with_items:
-    - "{{ masters }}"
+    - "{{ controls }}"
 
   - name: undefine infra vm(s)
     virt:
@@ -267,14 +267,14 @@
     - "{{ bootstrap }}"
     ignore_errors: yes
 
-  - name: "Remove master vm image file(s)"
+  - name: "Remove control vm image file(s)"
     vars:
-      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=masters file=/tmp/vm_img_path.ini') }}"
+      vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=controls file=/tmp/vm_img_path.ini') }}"
     shell: >
         virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
     with_items:
-    - "{{ masters }}"
+    - "{{ controls }}"
 
   - name: "Remove infra vm image file(s)"
     vars:

@@ -339,17 +339,17 @@
   tags:
     - ocp_vms_cluster
 
-- name: Create OpenShift master virtual machines
+- name: Create OpenShift control virtual machines
   command: >
     virt-install
-    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_master_nodes[0].name }}{{ item }}
-    --cpu=host --vcpus {{ ocp_vms_master_cpus }}
-    --memory {{ ocp_vms_master_nodes[0].ram }}
+    --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_control_nodes[0].name }}{{ item }}
+    --cpu=host --vcpus {{ ocp_vms_control_cpus }}
+    --memory {{ ocp_vms_control_nodes[0].ram }}
     {% if ocp_vms_hugepages == true %}--memorybacking hugepages=on{% endif %}
     --os-variant rhel8.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
     --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_master_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_master_nodes[0].size }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_control_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_control_nodes[0].size }}
     --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
     --boot hd,network,menu=on --noreboot
     {% if ocp_vms_console %}
@@ -361,7 +361,7 @@
     {% if ocp_vms_storage_overcommit %}
     --check disk_size=off
     {% endif %}
-  with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
+  with_sequence: start=0 end={{ ocp_vms_control_count -1 }} format=%02x
   tags:
     - ocp_vms_cluster
 
@@ -374,24 +374,24 @@
   tags:
     - vm_mac_dict
 
-- name: start master VM mac address ini section
+- name: start control VM mac address ini section
   shell: >
     echo "" >> /tmp/vm_mac_addrs.ini;
-    echo "[masters]" >> /tmp/vm_mac_addrs.ini
+    echo "[controls]" >> /tmp/vm_mac_addrs.ini
   tags:
     - vm_mac_dict
 
-- name: record master VM mac address
+- name: record control VM mac address
   shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_master_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
-    echo "{{ ocp_vms_master_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
-  with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_control_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
+    echo "{{ ocp_vms_control_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
+  with_sequence: start=0 end={{ ocp_vms_control_count -1 }} format=%02x
   tags:
     - vm_mac_dict
 
-- name: creating empty master dict
+- name: creating empty control dict
   set_fact:
-    master_dict: {}
+    control_dict: {}
   tags:
     - vm_mac_dict    
 
@@ -423,13 +423,13 @@
   tags:
     - ocp_vms_cluster
 
-- name: "Append dict seq - masters"
+- name: "Append dict seq - controls"
   vars:
-    master_vm: "{{ ocp_vms_master_nodes[0].name }}{{ item }}"
-    master_mac: "{{ lookup('ini', '{{ ocp_vms_master_nodes[0].name }}{{ item }}.mac section=masters file=/tmp/vm_mac_addrs.ini') }}"
+    control_vm: "{{ ocp_vms_control_nodes[0].name }}{{ item }}"
+    control_mac: "{{ lookup('ini', '{{ ocp_vms_control_nodes[0].name }}{{ item }}.mac section=controls file=/tmp/vm_mac_addrs.ini') }}"
   set_fact:
-    master_dict: "{{ master_dict | default({}) | combine( { master_vm : master_mac } ) }}"
-  with_sequence: start=0 end={{ ocp_vms_master_count -1 }} format=%02x
+    control_dict: "{{ control_dict | default({}) | combine( { control_vm : control_mac } ) }}"
+  with_sequence: start=0 end={{ ocp_vms_control_count -1 }} format=%02x
   tags:
     - vm_mac_dict
 

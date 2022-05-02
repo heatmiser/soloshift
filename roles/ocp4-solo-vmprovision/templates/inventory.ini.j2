@@ -7,7 +7,7 @@
 {% for item in ocp_vms_bootstrap_node %}
 {{ item.name }} ansible_host={{ ocp_vms_net_cidr | next_nth_usable(9) }} ansible_user=core
 {% endfor %}
-{% for host, macaddr in master_dict.items() %}
+{% for host, macaddr in control_dict.items() %}
 {{ host }} ansible_host={{ ocp_vms_net_cidr | next_nth_usable(9 +loop.index) }} ansible_user=core
 {% endfor %}
 {% if infra_dict|length > 0 %}
@@ -26,8 +26,8 @@
 {{ item.name }}
 {% endfor %}
 
-[masters]
-{% for host, macaddr in master_dict.items() %}
+[controls]
+{% for host, macaddr in control_dict.items() %}
 {{ host }}
 {% endfor %}
 

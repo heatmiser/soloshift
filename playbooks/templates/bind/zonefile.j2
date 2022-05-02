@@ -26,8 +26,8 @@ apps.{{ dns.clusterid }}		IN	A	{{ util.ipaddr }}
 ; Create entry for the bootstrap host
 {{ bootstrap.name }}.{{ dns.clusterid }}	IN	A	{{ bootstrap.ipaddr }}
 ;
-; Create entries for the master hosts
-{% for m in masters %}
+; Create entries for the control hosts
+{% for m in controls %}
 {{ m.name }}.{{ dns.clusterid }}		IN	A	{{ m.ipaddr }}
 {% endfor %}
 ;
@@ -43,13 +43,13 @@ apps.{{ dns.clusterid }}		IN	A	{{ util.ipaddr }}
 {{ w.name }}.{{ dns.clusterid }}		IN	A	{{ w.ipaddr }}
 {% endfor %}
 ;
-; The ETCd cluster lives on the masters...so point these to the IP of the masters
-{% for m in masters %}
+; The ETCd cluster lives on the controls...so point these to the IP of the controls
+{% for m in controls %}
 etcd-{{ loop.index0 }}.{{ dns.clusterid }}	IN	A	{{ m.ipaddr }}
 {% endfor %}
 ;
 ; The SRV records are IMPORTANT....make sure you get these right...note the trailing dot at the end...
-{% for m in masters %}
+{% for m in controls %}
 _etcd-server-ssl._tcp.{{ dns.clusterid }}	IN	SRV	0 10 2380 etcd-{{ loop.index0 }}.{{ dns.clusterid }}.{{ dns.domain }}.
 {% endfor %}
 ;

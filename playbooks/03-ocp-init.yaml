@@ -12,12 +12,12 @@
 
 - hosts: hypervisor
   tasks:
-  - name: Start master vm(s)
+  - name: Start control vm(s)
     include_tasks: includes/virt-node-start.yaml
     with_items:
-    - "{{ masters }}"
+    - "{{ controls }}"
 
-  - name: Pause for 3 minutes to allow master vm(s) to come up and update to latest OS release
+  - name: Pause for 3 minutes to allow control vm(s) to come up and update to latest OS release
     pause:
       seconds: 180
 

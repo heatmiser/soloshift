@@ -1,11 +1,11 @@
-{% for m in masters %}
+{% for m in controls %}
 /mnt/nfs/ocp  {{ m.name }}.{{ dns.clusterid }}.{{ dns.domain }}(rw,async,no_subtree_check,no_root_squash)
 {% endfor %}
 {% for w in workers %}
 /mnt/nfs/ocp  {{ w.name }}.{{ dns.clusterid }}.{{ dns.domain }}(rw,async,no_subtree_check,no_root_squash)
 {% endfor %}
 {% for i in range(0,10) %}  
-{% for m in masters %}
+{% for m in controls %}
 /mnt/nfs/store{{ "%02d"|format(i) }}  {{ m.name }}.{{ dns.clusterid }}.{{ dns.domain }}(rw,async,no_subtree_check,no_root_squash)
 {% endfor %}
 {% for w in workers %}

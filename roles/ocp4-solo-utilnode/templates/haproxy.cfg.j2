@@ -77,7 +77,7 @@ backend openshift-api-server
     balance source
     mode tcp
     server {{ bootstrap.name }} {{ bootstrap.ipaddr }}:6443 check
-{% for m in masters %}
+{% for m in controls %}
     server {{ m.name }} {{ m.ipaddr }}:6443 check
 {% endfor %}
     
@@ -91,7 +91,7 @@ backend machine-config-server
     balance source
     mode tcp
     server {{ bootstrap.name }} {{ bootstrap.ipaddr }}:22623 check
-{% for m in masters %}
+{% for m in controls %}
     server {{ m.name }} {{ m.ipaddr }}:22623 check
 {% endfor %}
 
