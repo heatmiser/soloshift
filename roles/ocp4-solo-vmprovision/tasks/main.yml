@@ -182,7 +182,7 @@
 
 - name: Creating utility VM images (lab VMs utilizing backing VM image - qemu-img)
   command: >
-    qemu-img create -f qcow2 -b
+    qemu-img create -f qcow2 -F qcow2 -b
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_base_image_distro }}-{{ ocp_vms_preprovisioned_basename }}"
     "{{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ item.name }}.qcow2"
   loop: "{{ ocp_vms_utility_node }}"
