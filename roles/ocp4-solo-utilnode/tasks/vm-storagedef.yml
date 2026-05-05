@@ -1,18 +1,19 @@
 ---
 - name: Create temporary file for utility image properties
-  tempfile:
+  ansible.builtin.tempfile:
     state: file
     suffix: .temp
   register: utilpropstemp_1
 
-- name: Dump utility VM XML properties "{{ utilpropstemp_1 }}"
-  shell: >
+- name: Dump utility VM XML properties to temp file
+  ansible.builtin.shell: >
     virsh dumpxml {{ dns.clusterid }}.{{ util.name }} > {{ utilpropstemp_1.path }}
+  changed_when: true
   tags:
     - ocp_vms_util_image_props
 
 - name: Query props file for utility VM disk devices
-  xml:
+  community.general.xml:
     path: "{{ utilpropstemp_1.path }}"
     xpath: /domain/devices/disk/target
     content: attribute
@@ -20,22 +21,26 @@
   tags:
     - ocp_vms_util_image_props
 
-- name: Remove props file "{{ utilpropstemp_1.path }}" using registered path var and file module
-  file:
+- name: Remove utility VM properties temp file
+  ansible.builtin.file:
     path: "{{ utilpropstemp_1.path }}"
     state: absent
   when: utilpropstemp_1.path is defined
 
-- debug: msg="{{ dns.clusterid }}.{{ util.name }} device list ==> {{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
+- name: Display utility VM device list
+  ansible.builtin.debug:
+    msg: "{{ dns.clusterid }}.{{ util.name }} device list ==> {{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
   tags:
     - ocp_vms_util_image_props
 
-- debug: msg="{{ dns.clusterid }}.{{ util.name }} device ==> {{ item }}"
+- name: Display each utility VM device
+  ansible.builtin.debug:
+    msg: "{{ dns.clusterid }}.{{ util.name }} device ==> {{ item }}"
   with_items: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
   tags:
     - ocp_vms_util_image_props
 
 - name: Set storage device list from registered devices_xml_text
-  set_fact:
+  ansible.builtin.set_fact:
     ocp_vms_util_device_list: "{{ devices_xml_text.matches | map(attribute='target.dev') | list }}"
-    cacheable: yes
+    cacheable: true

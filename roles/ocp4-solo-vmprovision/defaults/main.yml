@@ -1,13 +1,13 @@
 ---
 ocp_vms_copy_method: qemu-img
-ocp_vms_cpu_passthrough: True
-ocp_vms_no_log: False
-ocp_vms_preprovisioned: False
+ocp_vms_cpu_passthrough: true
+ocp_vms_no_log: false
+ocp_vms_preprovisioned: false
 ocp_vms_preprovisioned_basename: ocpbacking-x86_64-kvm.qcow2
 ocp_vms_password: ocp4ever
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images
 ocp_vms_net_cidr: 10.0.0.0/24
-ocp_vms_net_nat: True
+ocp_vms_net_nat: true
 ocp_vms_utility_os: rhel7
 ocp_vms_utility_name: util
 ocp_vms_utility_cpus: 1
@@ -27,10 +27,10 @@ ocp_vms_infra_memory: 4096
 ocp_vms_worker_count: 2
 ocp_vms_worker_cpus: 4
 ocp_vms_worker_memory: 8192
-ocp_vms_hugepages: False
-ocp_vms_storage_overcommit: False
-ocp_vms_console: True
-ocp_vms_no_auto_vm_console: True
+ocp_vms_hugepages: false
+ocp_vms_storage_overcommit: false
+ocp_vms_console: true
+ocp_vms_no_auto_vm_console: true
 ocp_vms_el_url: http://packages.oit.ncsu.edu/centos/7/os/x86_64
 ocp_vms_openshift_release: 4.2
 ocp_vms_openshift_subdomain: ocp4

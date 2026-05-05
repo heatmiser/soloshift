@@ -1,6 +1,6 @@
 ---
 # defaults file for ocp4-solo-utilnode
-ocp_util_filetranspiler: False
+ocp_util_filetranspiler: false
 
 ocp_rhcos_artifacts_url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/{{ ocp_vms_openshift_release }}/latest/
 ocp_rhcos_prerelease_artifacts_url: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/pre-release/latest/

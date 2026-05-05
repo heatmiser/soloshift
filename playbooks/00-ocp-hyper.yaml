@@ -1,56 +1,57 @@
 ---
-- hosts: localhost
+- name: Configure hypervisor host and register with Red Hat Network
+  hosts: localhost
   connection: local
   become: true
   # gather_facts: false
   tasks:
-  - name: "Register host hypervisor with RHN and add repos - RHEL 7"
-    import_role:
-      name: devnullcake.redhat-subscription
-    vars:
-      redhat_subscription_enable_explicit_repos_only: "yes"
-      redhat_subscription_disable_repos: []
-      redhat_subscription_enable_repos:
-        - rhel-7-server-rpms
-        - rhel-7-server-extras-rpms
-        - rhel-7-server-ansible-2.8-rpms
-    register: registration_result
-    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
-    when:
-      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
+    - name: "Register host hypervisor with RHN and add repos - RHEL 7"
+      ansible.builtin.import_role:
+        name: devnullcake.redhat-subscription
+      vars:
+        redhat_subscription_enable_explicit_repos_only: "yes"
+        redhat_subscription_disable_repos: []
+        redhat_subscription_enable_repos:
+          - rhel-7-server-rpms
+          - rhel-7-server-extras-rpms
+          - rhel-7-server-ansible-2.8-rpms
+      register: registration_result
+      failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+      when:
+        - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int <= 7
 
-  - name: "Register host hypervisor with RHN and add repos - RHEL 8"
-    import_role:
-      name: devnullcake.redhat-subscription
-    vars:
-      redhat_subscription_enable_explicit_repos_only: "yes"
-      redhat_subscription_disable_repos: []
-      redhat_subscription_enable_repos: []
-    register: registration_result
-    failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
-    when:
-      - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
+    - name: "Register host hypervisor with RHN and add repos - RHEL 8"
+      ansible.builtin.import_role:
+        name: devnullcake.redhat-subscription
+      vars:
+        redhat_subscription_enable_explicit_repos_only: "yes"
+        redhat_subscription_disable_repos: []
+        redhat_subscription_enable_repos: []
+      register: registration_result
+      failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
+      when:
+        - ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8
 
-  - name: "Configure host hypervisor system"
-    import_role:
-      name: ocp4-solo-hypervisor
+    - name: "Configure host hypervisor system"
+      ansible.builtin.import_role:
+        name: ocp4-solo-hypervisor
 
-  - name: Print Ansible Distribution debug information 
-    vars: 
-      msg: |
-        Ansible Distribution: {{ ansible_distribution }}
-        Ansible Dist version: {{ ansible_distribution_version }}
-    debug: 
-      msg: "{{ msg.split('\n') }}"       
-    tags: debug_info
+    - name: Print Ansible Distribution debug information
+      vars:
+        msg: |
+          Ansible Distribution: {{ ansible_distribution }}
+          Ansible Dist version: {{ ansible_distribution_version }}
+      ansible.builtin.debug:
+        msg: "{{ msg.split('\n') }}"
+      tags: debug_info
 
-  - name: Print Red Hat subscription debug information 
-    vars: 
-      msg: |
-        redhat_subscription_username: {{ redhat_subscription_username }}
-        redhat_subscription_password: {{ redhat_subscription_password }}
-        redhat_subscription_org_id: {{ redhat_subscription_org_id }}
-        redhat_subscription_activationkey: {{ redhat_subscription_activationkey }}
-    debug: 
-      msg: "{{ msg.split('\n') }}"       
-    tags: debug_info
+    - name: Print Red Hat subscription debug information
+      vars:
+        msg: |
+          redhat_subscription_username: {{ redhat_subscription_username }}
+          redhat_subscription_password: {{ redhat_subscription_password }}
+          redhat_subscription_org_id: {{ redhat_subscription_org_id }}
+          redhat_subscription_activationkey: {{ redhat_subscription_activationkey }}
+      ansible.builtin.debug:
+        msg: "{{ msg.split('\n') }}"
+      tags: debug_info

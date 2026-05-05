@@ -2,20 +2,21 @@
 - name: Run cluster recover actions
   hosts: localhost
   connection: local
-  gather_facts: False
-  become: no
+  gather_facts: false
+  become: false
 
   tasks:
-  - name: Wait 5 minutes for Nodes to settle and pods to start
-    pause:
-      minutes: 5
+    - name: Wait 5 minutes for Nodes to settle and pods to start
+      ansible.builtin.pause:
+        minutes: 5
 
-  - name: Get CSRs that need to be approved
-    command: oc get csr -oname
-    register: r_csrs
-    changed_when: false
+    - name: Get CSRs that need to be approved
+      ansible.builtin.command: oc get csr -oname
+      register: r_csrs
+      changed_when: false
 
-  - name: Approve all Pending CSRs
-    command: "oc adm certificate approve {{ item }}"
-    loop: "{{ r_csrs.stdout_lines }}"
-    when: r_csrs.stdout_lines | length > 0
+    - name: Approve all Pending CSRs
+      ansible.builtin.command: "oc adm certificate approve {{ item }}"
+      loop: "{{ r_csrs.stdout_lines }}"
+      changed_when: true
+      when: r_csrs.stdout_lines | length > 0

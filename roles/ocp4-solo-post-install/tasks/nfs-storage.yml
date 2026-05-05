@@ -2,16 +2,16 @@
 # Post OCP4 Solo Lab install - external NFS provisioner configuration
 
 - name: Create NFS Provisioner artifacts directory
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner"
     state: directory
-    mode: 0755
+    mode: "0755"
 
 - name: Pull NFS Provisioner manifests
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_nfs_ext_provision_github_url }}{{ item }}"
     dest: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner"
-    mode: '0440'
+    mode: "0440"
   loop:
     - rbac.yaml
     - deployment.yaml
@@ -21,8 +21,8 @@
 - name: Update rbac.yaml
   block:
     - name: >-
-        sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> rbac.yaml
-      replace:
+        Sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> rbac.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/rbac.yaml"
         regexp: >-
           namespace:.*
@@ -32,26 +32,25 @@
 - name: Update deployment.yaml
   block:
     - name: >-
-        sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> deployment.yaml
-      replace:
+        Sed replace ==> s/namespace:.*/namespace: $NAMESPACE/g ==> deployment.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
           namespace:.*
         replace: >-
           namespace: '{{ ocp_nfs_ext_provision_namespace }}'
-    
+
     - name: >-
-        sed replace ==> s/10.3.243.101/$UTIL_IP/g ==> deployment.yaml
-      replace:
+        Sed replace ==> s/10.3.243.101/$UTIL_IP/g ==> deployment.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
           10.3.243.101
         replace: >-
-          '{{ util.ipaddr }}' 
-
+          '{{ util.ipaddr }}'
     - name: >-
-        sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> deployment.yaml
-      replace:
+        Sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> deployment.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
           fuseim.*
@@ -59,8 +58,8 @@
           storage.io/nfs
 
     - name: >-
-        sed replace ==> s/\/ifs\/kubernetes/\/mnt\/nfs\/ocp/g ==> deployment.yaml
-      replace:
+        Sed replace ==> s/\/ifs\/kubernetes/\/mnt\/nfs\/ocp/g ==> deployment.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
         regexp: >-
           /ifs/kubernetes
@@ -70,17 +69,17 @@
 - name: Update class.yaml
   block:
     - name: >-
-        sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> class.yaml
-      replace:
+        Sed replace ==> s/fuseim.*/storage.io\/nfs/g ==> class.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/class.yaml"
         regexp: >-
           fuseim.*
         replace: >-
           storage.io/nfs
-    
+
     - name: >-
-        sed replace ==> s/nfs-client/managed-nfs-storage/g ==> class.yaml
-      replace:
+        Sed replace ==> s/nfs-client/managed-nfs-storage/g ==> class.yaml
+      ansible.builtin.replace:
         path: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/class.yaml"
         regexp: >-
           name: nfs-client
@@ -88,59 +87,58 @@
           name: managed-nfs-storage
 
 - name: Create the NFS External Provisioner namespace
-  k8s:
+  kubernetes.core.k8s:
     name: "{{ ocp_nfs_ext_provision_namespace }}"
     api_version: v1
     kind: Namespace
     state: present
 
-- name: Apply "openshift.io/cluster-monitoring=true" label to "{{ ocp_nfs_ext_provision_namespace }}" namespace
-  command: >-
+- name: Apply openshift.io/cluster-monitoring=true label to NFS provisioner namespace
+  ansible.builtin.command: >-
     oc label namespace '{{ ocp_nfs_ext_provision_namespace }}' "openshift.io/cluster-monitoring=true"
   register: oc_label_namespace_result
-  ignore_errors: true
+  changed_when: '"labeled" in oc_label_namespace_result.stdout'
+  failed_when: false
 
-- name: Fail if "oc label apply" does not succeed
-  fail:
+- name: Fail if namespace label apply did not succeed
+  ansible.builtin.fail:
     msg:
       - "stdout: {{ oc_label_namespace_result.stdout }}"
       - "stderr: {{ oc_label_namespace_result.stderr }}"
-  when: >
-    '"already has a value (true)" not in oc_label_namespace_result.stderr or
-    "labeled" not in oc_label_namespace_result.stdout' 
-  failed_when: >
-    ("already has a value (true)" not in oc_label_namespace_result.stderr and oc_label_namespace_result.rc == 1) or
-    ("labeled" not in oc_label_namespace_result.stdout and oc_label_namespace_result.rc == 0)
+  when: >-
+    "already has a value (true)" not in oc_label_namespace_result.stderr and
+    "labeled" not in oc_label_namespace_result.stdout
 
-- name: stdout for "oc label namespace"
-  debug:
+- name: Stdout for "oc label namespace"
+  ansible.builtin.debug:
     msg: "{{ oc_label_namespace_result.stdout }}"
 
 - name: Apply RBAC manifest ==> ServiceAccount, ClusterRole, ClusterRoleBinding, Role, RoleBinding
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/rbac.yaml"
-    wait: yes
+    wait: true
 
-- name: Add security context constraint to service account nfs-client-provisioner in "{{ ocp_nfs_ext_provision_namespace }}" project
-  command: "oc adm policy add-scc-to-user hostmount-anyuid system:serviceaccount:{{ ocp_nfs_ext_provision_namespace }}:nfs-client-provisioner"
+- name: Add hostmount-anyuid SCC to nfs-client-provisioner service account
+  ansible.builtin.command: "oc adm policy add-scc-to-user hostmount-anyuid system:serviceaccount:{{ ocp_nfs_ext_provision_namespace }}:nfs-client-provisioner"
   register: oc_adm_policy_result
+  changed_when: '"added" in oc_adm_policy_result.stdout'
   failed_when: '"added" not in oc_adm_policy_result.stdout'
 
 - name: Apply StorageClass manifest
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/class.yaml"
-    wait: yes
+    wait: true
 
 - name: Apply Deployment manifest
-  k8s:
+  kubernetes.core.k8s:
     state: present
     src: "{{ ansible_user_dir }}/ocp4upi/artifacts/nfs-external-provisioner/deployment.yaml"
-    wait: yes
+    wait: true
 
 - name: Set class as cluster-wide default
-  k8s:
+  kubernetes.core.k8s:
     state: present
     definition:
       apiVersion: storage.k8s.io/v1
@@ -149,36 +147,36 @@
         name: managed-nfs-storage
         annotations:
           storageclass.kubernetes.io/is-default-class: "true"
-    wait: yes
+    wait: true
 
-- name: Pause for 10 seconds... 
-  pause:
+- name: Pause for 10 seconds...
+  ansible.builtin.pause:
     seconds: 10
 
 - name: Fetch configs.imageregistry.operator.openshift.io/cluster to determine registry status
-  k8s_info:
+  kubernetes.core.k8s_info:
     api_version: imageregistry.operator.openshift.io/v1
     kind: Config
   register: imageregistry_config_list
 
 - name: Set fact for registry status
-  set_fact:
+  ansible.builtin.set_fact:
     imageregistry_status: "{{ imageregistry_config_list | json_query(my_query) | first | json_query('Status') }}"
   vars:
     my_query: "resources[].{Status: status.conditions[?type=='Available'].message|[0]}"
 
 - name: Check registry status
-  debug:
+  ansible.builtin.debug:
     msg: "Registry status: {{ imageregistry_status }}"
 
 - name: Pause for 45 seconds to allow NFS storage configuration to settle
-  pause:
+  ansible.builtin.pause:
     seconds: 45
   when: >-
     "The registry is ready" not in imageregistry_status
 
 - name: Set Image Registry to use NFS storage
-  k8s:
+  kubernetes.core.k8s:
     state: present
     definition:
       apiVersion: imageregistry.operator.openshift.io/v1
@@ -190,29 +188,29 @@
         storage:
           pvc:
             claim: ""
-    wait: yes
+    wait: true
   when: >-
     "The registry is ready" not in imageregistry_status
 
 - name: Re-verify registry status block
+  when: >-
+    "The registry is ready" not in imageregistry_status
   block:
     - name: Pause for 45 seconds to allow Image Registry Operator cluster config to update
-      pause:
+      ansible.builtin.pause:
         seconds: 45
     - name: Fetch configs.imageregistry.operator.openshift.io/cluster to determine registry status
-      k8s_info:
+      kubernetes.core.k8s_info:
         api_version: imageregistry.operator.openshift.io/v1
         kind: Config
       register: imageregistry_config_list
 
     - name: Set fact for registry status
-      set_fact:
+      ansible.builtin.set_fact:
         imageregistry_status: "{{ imageregistry_config_list | json_query(my_query) | first | json_query('Status') }}"
       vars:
         my_query: "resources[].{Status: status.conditions[?type=='Available'].message|[0]}"
 
     - name: Check registry status
-      debug:
+      ansible.builtin.debug:
         msg: "Registry status: {{ imageregistry_status }}"
-  when: >-
-    "The registry is ready" not in imageregistry_status

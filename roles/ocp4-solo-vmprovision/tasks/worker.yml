@@ -1,6 +1,6 @@
 ---
 - name: Create OpenShift worker virtual machines
-  command: >
+  ansible.builtin.command: >
     virt-install
     --name {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }}
     --cpu=host --vcpus {{ ocp_vms_worker_cpus }}
@@ -9,7 +9,8 @@
     --os-variant rhel8.0
     {% if ocp_vms_cpu_passthrough %}--cpu host-passthrough{% endif %}
     --controller type=scsi,model=virtio-scsi
-    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_worker_nodes[0].name }}{{ item }}.qcow2,bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_worker_nodes[0].size }}
+    --disk path={{ ocp_vms_libvirt_images_location }}/{{ ocp_vms_openshift_subdomain }}-{{ ocp_vms_worker_nodes[0].name }}{{ item }}.qcow2,
+    bus=scsi,discard='unmap',format=qcow2,size={{ ocp_vms_worker_nodes[0].size }}
     --network network={{ ocp_vms_openshift_subdomain }}-private,model=virtio,mac={{ '52:54:00' | random_mac }}
     --boot hd,network,menu=on --noreboot
     {% if ocp_vms_console %}
@@ -21,29 +22,34 @@
     {% if ocp_vms_storage_overcommit %}
     --check disk_size=off
     {% endif %}
-  with_sequence: start=0 end={{ ocp_vms_worker_num|int -1 }} format=%02x
+  with_sequence: start=0 end={{ ocp_vms_worker_num | int - 1 }} format=%02x
+  changed_when: true
 
-- name: start worker VM mac address ini section
-  shell: >
-    echo "" >> /tmp/vm_mac_addrs.ini;
+- name: Start worker VM mac address ini section
+  ansible.builtin.shell: |
+    echo "" >> /tmp/vm_mac_addrs.ini
     echo "[workers]" >> /tmp/vm_mac_addrs.ini
+  changed_when: true
   tags:
     - vm_mac_dict
 
-- name: record worker VM mac address
-  shell: >
-    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }} | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
+- name: Record worker VM mac address
+  ansible.builtin.shell: >
+    set -o pipefail &&
+    itemmac=$(virsh domiflist {{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_worker_nodes[0].name }}{{ item }}
+    | grep -i {{ ocp_vms_openshift_subdomain }}-private | awk '{print $5}');
     echo "{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac=$itemmac" >> /tmp/vm_mac_addrs.ini
-  with_sequence: start=0 end={{ ocp_vms_worker_num|int -1 }} format=%02x
+  with_sequence: start=0 end={{ ocp_vms_worker_num | int - 1 }} format=%02x
+  changed_when: true
   tags:
     - vm_mac_dict
 
-- name: "Append dict seq - workers"
+- name: Append worker MAC addresses to worker_dict fact
   vars:
     worker_vm: "{{ ocp_vms_worker_nodes[0].name }}{{ item }}"
     worker_mac: "{{ lookup('ini', '{{ ocp_vms_worker_nodes[0].name }}{{ item }}.mac section=workers file=/tmp/vm_mac_addrs.ini') }}"
-  set_fact:
-    worker_dict: "{{ worker_dict | default({}) | combine( { worker_vm : worker_mac } ) }}"
-  with_sequence: start=0 end={{ ocp_vms_worker_num|int -1 }} format=%02x
+  ansible.builtin.set_fact:
+    worker_dict: "{{ worker_dict | default({}) | combine({worker_vm: worker_mac}) }}"
+  with_sequence: start=0 end={{ ocp_vms_worker_num | int - 1 }} format=%02x
   tags:
     - vm_mac_dict

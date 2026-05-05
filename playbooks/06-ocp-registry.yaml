@@ -1,67 +1,69 @@
 ---
-
-- hosts: util
+- name: Configure OpenShift image registry with PVC-backed storage
+  hosts: util
   become: true
-  gather_facts: no
+  gather_facts: false
   tasks:
-  - name: Wait for connection...
-    wait_for_connection:
-      delay: 10
-      timeout: 120
+    - name: Wait for util node connection
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: 120
 
-  - name: Install kubernetes pip module for Python 3, using the 'pip3' executable.
-    pip:
-      name: kubernetes
-      executable: pip3
-      extra_args: --user
+    - name: Install kubernetes pip module for Python 3
+      ansible.builtin.pip:
+        name: kubernetes
+        executable: pip3
+        extra_args: --user
 
-  - name: Install openshift pip module for Python 3, using the 'pip3' executable.
-    pip:
-      name: openshift
-      executable: pip3
-      extra_args: --user
+    - name: Install openshift pip module for Python 3
+      ansible.builtin.pip:
+        name: openshift
+        executable: pip3
+        extra_args: --user
 
-  - name: Download jq and place in /usr/local/bin
-    get_url:
-      url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-      dest: /usr/local/bin
-      mode: 0777
-      checksum: sha256:af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44
-      group: root
-      owner: root
+    - name: Download jq binary and place in /usr/local/bin
+      ansible.builtin.get_url:
+        url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+        dest: /usr/local/bin
+        mode: "0755"
+        checksum: sha256:af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44
+        group: root
+        owner: root
 
-  - name: Create symlink for jq --> jq-linux64
-    file:
-      src: /usr/local/bin/jq-linux64
-      dest: /usr/local/bin/jq
-      owner: root
-      group: root
-      state: link
-      force: true
+    - name: Create symlink jq -> jq-linux64
+      ansible.builtin.file:
+        src: /usr/local/bin/jq-linux64
+        dest: /usr/local/bin/jq
+        owner: root
+        group: root
+        state: link
+        force: true
 
-  - name: Create registry-storage pvc
-    k8s:
-      state: present
-      #kubeconfig: "{{ openshift_install_dir }}/auth/kubeconfig"
-      definition:
-        apiVersion: v1
-        kind: PersistentVolumeClaim
-        metadata:
-          name: registry-storage
-          namespace: openshift-image-registry
-        spec:
-          accessModes:
-          - ReadWriteMany
-          resources:
-            requests:
-              storage: 100Gi
+    - name: Create registry-storage PVC in openshift-image-registry namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: registry-storage
+            namespace: openshift-image-registry
+          spec:
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: 100Gi
 
-  - name: Configure image registry backend storage to use registry-storage pvc
-    command: |
-      oc patch configs.imageregistry.operator.openshift.io cluster --type='json' -p='[{"op": "remove", "path": "/spec/storage" },{"op": "add", "path": "/spec/storage", "value": {"pvc":{"claim": "registry-storage"}}}]'
-    register: registry_status
-    retries: 60
-    delay: 30
-    until: registry_status.rc == 0
-    tags: 
-    - storage
+    - name: Configure image registry backend storage to use registry-storage PVC
+      ansible.builtin.command: >-
+        oc patch configs.imageregistry.operator.openshift.io cluster --type='json'
+        -p='[{"op": "remove", "path": "/spec/storage" },{"op": "add", "path": "/spec/storage",
+        "value": {"pvc":{"claim": "registry-storage"}}}]'
+      register: registry_status
+      changed_when: registry_status.rc == 0
+      retries: 60
+      delay: 30
+      until: registry_status.rc == 0
+      tags:
+        - storage

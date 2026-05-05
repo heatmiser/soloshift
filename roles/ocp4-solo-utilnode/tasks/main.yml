@@ -1,33 +1,39 @@
 ---
 # Setup OCP4 Util Node
-- name: current local user
-  run_once: True
-  set_fact:
-    ansible_local_user: "{{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True) | d(lookup('env', 'USER'), True) |  d(lookup('env', 'user'), True) |  d(lookup('env', 'LOGNAME'), True) }}"
+- name: Current local user
+  run_once: true
+  ansible.builtin.set_fact:
+    ansible_local_user: >-
+      {{ lookup('pipe', 'id -un') | d(lookup('pipe', 'whoami'), True)
+      | d(lookup('env', 'USER'), True) | d(lookup('env', 'user'), True)
+      | d(lookup('env', 'LOGNAME'), True) }}
   failed_when: ansible_local_user == ''
   tags:
     - local_user
 
-- name: current local group
-  run_once: True
-  set_fact:
+- name: Current local group
+  run_once: true
+  ansible.builtin.set_fact:
     ansible_local_group: "{{ lookup('pipe', 'id -gn') }}"
   failed_when: ansible_local_group == ''
   tags:
     - local_user
 
-- name: current local user home
-  run_once: True
-  set_fact:
+- name: Current local user home
+  run_once: true
+  ansible.builtin.set_fact:
     ansible_local_home: "{{ lookup('env', 'HOME') }}"
   failed_when: ansible_local_home == ''
   tags:
     - local_user
 
 - name: Package installation on RHEL/CentOS
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+
   block:
     - name: Install base packages
-      yum:
+      ansible.builtin.yum:
         name:
           - bind
           - bind-utils
@@ -44,14 +50,14 @@
         - util_pkgs
 
     - name: Install httpd
-      yum:
+      ansible.builtin.yum:
         name:
           - httpd
         state: present
       when: not matchbox
 
     - name: Install packages for DHCP/PXE install - RHEL/CentOS7
-      yum:
+      ansible.builtin.yum:
         name:
           - dhcp
           - syslinux
@@ -60,7 +66,7 @@
       when: not staticips and ansible_distribution_major_version|int <= 7
 
     - name: Install packages for DHCP/PXE install - RHEL8
-      yum:
+      ansible.builtin.yum:
         name:
           - dhcp-server
           - syslinux
@@ -69,29 +75,26 @@
       when: not staticips and ansible_distribution_major_version|int >= 8
 
     - name: Set domain_can_mmap_files flag on and keep it persistent across reboots, required for dhcpd
-      seboolean:
+      ansible.posix.seboolean:
         name: domain_can_mmap_files
-        state: yes
-        persistent: yes
+        state: true
+        persistent: true
       when: not staticips and ansible_distribution_major_version|int >= 8
 
     - name: Install package for iPXE boot images
-      yum:
+      ansible.builtin.yum:
         name:
           - ipxe-bootimgs
         state: present
       when: matchbox
 
     - name: Update all packages
-      yum:
-        name: '*'
-        state: latest
+      ansible.builtin.yum:
+        name: "*"
+        state: present
       register: yumup_code
-  when:
-    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
-
 - name: Package installations when utilizing RHEL7 and older
-  yum:
+  ansible.builtin.yum:
     name:
       - libselinux-python
     state: present
@@ -101,9 +104,12 @@
     - (ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS') and ansible_distribution_major_version|int <= 7
 
 - name: Package installation on Fedora
+  when:
+    - ansible_distribution == 'Fedora'
+
   block:
     - name: Install base packages
-      dnf:
+      ansible.builtin.dnf:
         name:
           - ansible
           - bind
@@ -122,14 +128,14 @@
         - util_pkgs
 
     - name: Install httpd
-      dnf:
+      ansible.builtin.dnf:
         name:
           - httpd
         state: present
       when: not matchbox
 
     - name: Install packages for DHCP/PXE install
-      dnf:
+      ansible.builtin.dnf:
         name:
           - dhcp
           - syslinux
@@ -138,22 +144,19 @@
       when: not staticips
 
     - name: Install package for iPXE boot images
-      dnf:
+      ansible.builtin.dnf:
         name:
           - ipxe-bootimgs
         state: present
       when: matchbox
 
     - name: Update all packages
-      dnf:
-        name: '*'
-        state: latest
+      ansible.builtin.dnf:
+        name: "*"
+        state: present
       register: dnfup_code
-  when:
-    - ansible_distribution == 'Fedora'
-
 - name: Package installations when utilizing Fedora 30 and older
-  dnf:
+  ansible.builtin.dnf:
     name:
       - libselinux-python
     state: present
@@ -163,152 +166,165 @@
     - ansible_distribution == 'Fedora' and ansible_distribution_version|int <= 30
 
 - name: Write out dhcp file
-  template:
+  ansible.builtin.template:
     src: dhcp/dhcpd.conf.j2
     dest: /etc/dhcp/dhcpd.conf
+    mode: "0644"
   when: not staticips
   tags:
-  - dhcpd_conf
+    - dhcpd_conf
 
 - name: Write out named conf file
-  template:
+  ansible.builtin.template:
     src: bind/named.conf.j2
     dest: /etc/named.conf
+    mode: "0644"
 
 - name: Set zone serial number
-  command: "date +%Y%m%d00"
+  ansible.builtin.command: "date +%Y%m%d00"
   register: dymanicserialnumber
+  changed_when: false
 
 - name: Setting serial number as a fact
-  set_fact:
+  ansible.builtin.set_fact:
     serialnumber: "{{ dymanicserialnumber.stdout }}"
 
 - name: Create named primary zone and logging directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: named
     group: named
-    mode: 0755
+    mode: "0755"
   with_items:
     - /var/log/named
     - /var/named/primary
 
-- name: Write out "{{ dns.domain }}" zone file
-  template:
+- name: Write out forward zone file
+  ansible.builtin.template:
     src: bind/zonefile.j2
     dest: /var/named/primary/master.{{ dns.domain }}.db
     owner: named
     group: named
+    mode: "0644"
 
 - name: Write out reverse zone file
-  template:
+  ansible.builtin.template:
     src: bind/reverse.j2
     dest: /var/named/primary/reverse.{{ dns.domain }}.db
     owner: named
     group: named
+    mode: "0644"
 
 - name: "Edit hosts file"
-  lineinfile: dest=/etc/hosts regexp='.*{{ item }}$' line="127.0.0.1 {{item}}" state=present
+  ansible.builtin.lineinfile:
+    dest: /etc/hosts
+    regexp: ".*{{ item }}$"
+    line: "127.0.0.1 {{ item }}"
+    state: present
   with_items: "{{ util.name }}"
   tags:
     - util_hosts
 
 - name: Write out haproxy config file
-  template:
+  ansible.builtin.template:
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
+    mode: "0644"
 
 - name: Implement network-online.service for haproxy service startup dependency
-  copy:
-    src: ../files/network-online.service
+  ansible.builtin.copy:
+    src: network-online.service
     dest: /etc/systemd/system/network-online.service
+    mode: "0644"
 
 - name: Modify haproxy service to require network-online service
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /usr/lib/systemd/system/haproxy.service
-    insertafter: '^Description='
+    insertafter: "^Description="
     line: Requires=network-online.service
 
 - name: Modify haproxy service to start after network-online service is ready
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /usr/lib/systemd/system/haproxy.service
-    regexp: 'After=network.target'
+    regexp: "After=network.target"
     line: After=network-online.service
   tags:
-  - haproxyservicecfg
+    - haproxyservicecfg
 
 - name: Reload systemctl daemon
-  shell: "systemctl daemon-reload"
-
+  ansible.builtin.systemd:
+    daemon_reload: true
 - name: Start and enable network-online service
-  service:
+  ansible.builtin.service:
     name: network-online.service
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Best effort SELinux repair - Apache
-  shell: "restorecon -vR /var/www/html || true"
+  ansible.builtin.shell: "restorecon -vR /var/www/html || true"
+  changed_when: false
   when: not matchbox
 
 - name: Copy httpd conf file
-  copy:
-    src: ../files/httpd.conf
+  ansible.builtin.copy:
+    src: httpd.conf
     dest: /etc/httpd/conf/httpd.conf
+    mode: "0644"
   when: not matchbox
 
 - name: Create apache directories for installing
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: 0755
+    mode: "0755"
   with_items:
     - /var/www/html/install
     - /var/www/html/ignition
   when: not matchbox
 
 - name: Get matchbox distribution
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/poseidon/matchbox/releases/download/v0.8.3/matchbox-v0.8.3-linux-amd64.tar.gz
     dest: /tmp
-    mode: '0440'
+    mode: "0440"
   register: getmatchresult
   until: getmatchresult is succeeded
   when: matchbox
 
 - name: Extract matchbox distribution to /tmp
-  unarchive:
+  ansible.builtin.unarchive:
     src: /tmp/matchbox-v0.8.3-linux-amd64.tar.gz
     dest: /tmp
     extra_opts:
-    - --strip=1
-    - --wildcards
-    - '*/matchbox'
-    - '*/contrib/systemd/matchbox-local.service'
-    remote_src: True
+      - --strip=1
+      - --wildcards
+      - "*/matchbox"
+      - "*/contrib/systemd/matchbox-local.service"
+    remote_src: true
   when: matchbox
 
 - name: Copy matchbox binary
-  copy:
+  ansible.builtin.copy:
     src: /tmp/matchbox
     dest: /usr/local/bin/matchbox
-    mode: '0555'
-    remote_src: True
+    mode: "0555"
+    remote_src: true
   when: matchbox
 
 - name: Installing matchbox Systemd unit file
-  copy:
+  ansible.builtin.copy:
     src: /tmp/contrib/systemd/matchbox-local.service
     dest: /etc/systemd/system/matchbox.service
-    mode: '0555'
-    remote_src: True
+    mode: "0555"
+    remote_src: true
   when: matchbox
 
 - name: Create matchbox directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: 0755
+    mode: "0755"
   with_items:
     - /etc/matchbox
     - /var/lib/matchbox/assets
@@ -318,8 +334,8 @@
     - /var/lib/matchbox/install
   when: matchbox
 
-- name: noodle for rhcos installer initramfs file - RHOCP 4.5 and previous
-  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} installer-initramfs {{ ocp_vms_openshift_release }}"
+- name: Noodle for rhcos installer initramfs file - RHOCP 4.5 and previous
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} installer-initramfs {{ ocp_vms_openshift_release }}"
   register: rhcosinitramfs
   retries: 4
   delay: 30
@@ -328,8 +344,8 @@
   tags:
     - noodlin
 
-- name: noodle for rhcos installer initramfs file - RHOCP 4.6 forward
-  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-initramfs {{ ocp_vms_openshift_release }}"
+- name: Noodle for rhcos installer initramfs file - RHOCP 4.6 forward
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} live-initramfs {{ ocp_vms_openshift_release }}"
   register: rhcosinitramfs
   retries: 4
   delay: 30
@@ -339,14 +355,14 @@
     - noodlin
 
 - name: Set rhcos installer initramfs file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
   when: rhcosinitramfs.rc is defined and rhcosinitramfs.rc == 0
   tags:
     - noodlin
 
-- name: noodle for rhcos installer initramfs file - pre-release
-  script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-initramfs nightly"
+- name: Noodle for rhcos installer initramfs file - pre-release
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-initramfs nightly"
   register: rhcosinitramfs
   retries: 4
   delay: 30
@@ -356,20 +372,20 @@
     - noodlin
 
 - name: Set rhcos installer initramfs file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     rhcosinitramfsfile: "{{ rhcosinitramfs.stdout | trim }}"
   when: rhcosinitramfs.rc is defined and rhcosinitramfs.rc == 0
   tags:
     - noodlin
 
 - name: What is the rhcos installer initramfs file name?
-  debug:
+  ansible.builtin.debug:
     var: rhcosinitramfsfile
   tags:
     - noodlin
 
-- name: noodle for rhcos installer kernel file - RHOCP 4.5 and previous
-  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} installer-kernel {{ ocp_vms_openshift_release }}"
+- name: Noodle for rhcos installer kernel file - RHOCP 4.5 and previous
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} installer-kernel {{ ocp_vms_openshift_release }}"
   register: rhcoskernel
   retries: 4
   delay: 30
@@ -378,8 +394,8 @@
   tags:
     - noodlin
 
-- name: noodle for rhcos installer kernel file - RHOCP 4.6 forward
-  script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-kernel {{ ocp_vms_openshift_release }}"
+- name: Noodle for rhcos installer kernel file - RHOCP 4.6 forward
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} live-kernel {{ ocp_vms_openshift_release }}"
   register: rhcoskernel
   retries: 4
   delay: 30
@@ -389,14 +405,14 @@
     - noodlin
 
 - name: Set rhcos installer kernel file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
   when: rhcoskernel.rc is defined and rhcoskernel.rc == 0
   tags:
     - noodlin
 
-- name: noodle for rhcos installer kernel file - pre-release
-  script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-kernel nightly"
+- name: Noodle for rhcos installer kernel file - pre-release
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-kernel nightly"
   register: rhcoskernel
   retries: 4
   delay: 30
@@ -406,118 +422,123 @@
     - noodlin
 
 - name: Set rhcos installer kernel file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     rhcoskernelfile: "{{ rhcoskernel.stdout | trim }}"
   when: rhcoskernel.rc is defined and rhcoskernel.rc == 0
   tags:
     - noodlin
 
 - name: What is the rhcos installer kernel file name?
-  debug: 
+  ansible.builtin.debug:
     var: rhcoskernelfile
   tags:
     - noodlin
 
-- block:
-  - name: noodle for rhcos metal bios file - RHOCP 4.2 and earlier
-    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal-bios {{ ocp_vms_openshift_release }}"
-    register: rhcosmetalbios
-    retries: 4
-    delay: 30
-    until: rhcosmetalbios.rc == 0
-  - name: Set rhcos metal bios file name as fact
-    set_fact:
-      rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+- name: Noodle for rhcos metal bios files - RHOCP 4.2 and earlier
   when: ocp_vms_openshift_release is version('4.2', '<=')
   tags:
     - noodlin
 
-- block:
-  - name: noodle for rhcos metal file - RHOCP 4.3 through RHOCP 4.5
-    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} metal {{ ocp_vms_openshift_release }}"
-    register: rhcosmetalbios
-    retries: 4
-    delay: 30
-    until: rhcosmetalbios.rc == 0
-  - name: Set rhcos metal bios file name as fact
-    set_fact:
-      rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+  block:
+    - name: Noodle for rhcos metal bios file - RHOCP 4.2 and earlier
+      ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} metal-bios {{ ocp_vms_openshift_release }}"
+      register: rhcosmetalbios
+      retries: 4
+      delay: 30
+      until: rhcosmetalbios.rc == 0
+    - name: Set rhcos metal bios file name as fact
+      ansible.builtin.set_fact:
+        rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
+- name: Noodle for rhcos metal files - RHOCP 4.3 through 4.5
   when: ocp_vms_openshift_release is version('4.3', '>=') and ocp_vms_openshift_release is version('4.5', '<=')
   tags:
     - noodlin
 
+  block:
+    - name: Noodle for rhcos metal file - RHOCP 4.3 through RHOCP 4.5
+      ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} metal {{ ocp_vms_openshift_release }}"
+      register: rhcosmetalbios
+      retries: 4
+      delay: 30
+      until: rhcosmetalbios.rc == 0
+    - name: Set rhcos metal bios file name as fact
+      ansible.builtin.set_fact:
+        rhcosmetalbiosfile: "{{ rhcosmetalbios.stdout | trim }}"
 - name: Set rhcos metal bios file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     rhcosmetalbiosfile: None
   when: ocp_vms_openshift_release is version('4.6', '>=')
 
-- block:
-  - name: noodle for rhcos live-rootfs file - RHOCP 4.6 and later
-    script: "../bin/noodle {{ ocp_rhcos_artifacts_url }} live-rootfs\\\\. {{ ocp_vms_openshift_release }}"
-    register: rhcosliverootfs
-    retries: 4
-    delay: 30
-    until: rhcosliverootfs.rc == 0
-  - name: Set rhcos live-rootfs file name as fact
-    set_fact:
-      rhcosliverootfsfile: "{{ rhcosliverootfs.stdout | trim }}"
+- name: Noodle for rhcos live-rootfs files - RHOCP 4.6 and later
   when: ocp_vms_openshift_release is version('4.6', '>=')
   tags:
     - noodlin
 
-- debug:
+  block:
+    - name: Noodle for rhcos live-rootfs file - RHOCP 4.6 and later
+      ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_artifacts_url }} live-rootfs\\\\. {{ ocp_vms_openshift_release }}"
+      register: rhcosliverootfs
+      retries: 4
+      delay: 30
+      until: rhcosliverootfs.rc == 0
+    - name: Set rhcos live-rootfs file name as fact
+      ansible.builtin.set_fact:
+        rhcosliverootfsfile: "{{ rhcosliverootfs.stdout | trim }}"
+- name: Display pre-release noodle command for live-rootfs
+  ansible.builtin.debug:
     msg: "./bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-rootfs\\\\. nightly"
 
-- block:
-  - name: noodle for rhcos live-rootfs file - pre-release
-    script: "../bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-rootfs\\\\. nightly"
-    register: rhcosliverootfs
-    retries: 4
-    delay: 30
-    until: rhcosliverootfs.rc == 0
-  - name: Set rhcos live-rootfs file name as fact
-    set_fact:
-      rhcosliverootfsfile: "{{ rhcosliverootfs.stdout | trim }}"
+- name: Noodle for rhcos live-rootfs files - pre-release
   when: ocp_vms_openshift_prerelease is defined
   tags:
     - noodlin
 
+  block:
+    - name: Noodle for rhcos live-rootfs file - pre-release
+      ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle {{ ocp_rhcos_prerelease_artifacts_url }} live-rootfs\\\\. nightly"
+      register: rhcosliverootfs
+      retries: 4
+      delay: 30
+      until: rhcosliverootfs.rc == 0
+    - name: Set rhcos live-rootfs file name as fact
+      ansible.builtin.set_fact:
+        rhcosliverootfsfile: "{{ rhcosliverootfs.stdout | trim }}"
 - name: What is the rhcos metal bios file name?
-  debug: 
+  ansible.builtin.debug:
     var: rhcosmetalbiosfile
   when: ocp_vms_openshift_release is version('4.6', '<')
   tags:
     - noodlin
 
 - name: What is the rhcos live-rootfs file name?
-  debug: 
+  ansible.builtin.debug:
     var: rhcosliverootfsfile
   when: ocp_vms_openshift_release is version('4.6', '>=') or ocp_vms_openshift_prerelease is defined
   tags:
     - noodlin
 
-- name: check if rhcos installer initramfs, kernel, and metal bios files are present
-  stat: 
+- name: Check if rhcos installer initramfs, kernel, and metal bios files are present
+  ansible.builtin.stat:
     path: /var/lib/matchbox/assets/{{ item }}
   loop:
     - "{{ rhcosinitramfsfile }}"
     - "{{ rhcoskernelfile }}"
     - "{{ rhcosmetalbiosfile }}"
   when: ocp_vms_openshift_release is version('4.6', '<')
-# Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
+  # Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
   register: rhcos_mb_assets
   tags:
     - rhcos_mb_asset_files
 
-- name: check if rhcos installer initramfs, kernel, and live-rootfs files are present
-  stat: 
+- name: Check if rhcos installer initramfs, kernel, and live-rootfs files are present
+  ansible.builtin.stat:
     path: /var/lib/matchbox/assets/{{ item }}
   loop:
     - "{{ rhcosinitramfsfile }}"
     - "{{ rhcoskernelfile }}"
     - "{{ rhcosliverootfsfile }}"
   when: ocp_vms_openshift_release is version('4.6', '>=') or ocp_vms_openshift_prerelease is defined
-# Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
+  # Since we are looping, rhcos_mb_assests is a dictionary, allowing indvidual .results
   register: rhcos_mb_assets
   tags:
     - rhcos_mb_asset_files
@@ -525,46 +546,46 @@
 # Left in code as a means for studies on how selectattr( ) can be used with both Jinja ( equalto( ) ) and Ansible ( match( ) and search( ) ) tests.
 # https://stackoverflow.com/questions/31895602/ansible-filter-a-list-by-its-attributes
 - name: Print rhcos_mb_assets dict
-  debug:
-    msg: "Key is {{ item.key}} and value is {{item.value}}"
+  ansible.builtin.debug:
+    msg: "Key is {{ item.key }} and value is {{ item.value }}"
   with_dict: "{{ rhcos_mb_assets }}"
   tags:
     - rhcos_mb_asset_files
 
 - name: What items are in the loop?
-  debug:
+  ansible.builtin.debug:
     msg: "{{ item }}"
-# selectattr('stat.exists', 'equalto', 'False') would not correctly select items, so went with a stat attribute that is undefined when not exists
+  # selectattr('stat.exists', 'equalto', 'False') would not correctly select items, so went with a stat attribute that is undefined when not exists
   loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined') | map(attribute='item') | list }}"
   when: matchbox
   tags:
     - rhcos_mb_asset_files
 
 - name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox - GA release
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_rhcos_artifacts_url }}{{ item }}"
     dest: /var/lib/matchbox/assets
-    mode: '0440'
-  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+    mode: "0440"
+  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined') | map(attribute='item') | list }}"
   when: matchbox and ocp_vms_openshift_prerelease is not defined
   tags:
     - rhcos_mb_asset_files
 
 - name: Download rhcos installer initramfs, kernel, and metal bios files for matchbox - pre-release
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_rhcos_prerelease_artifacts_url }}{{ item }}"
     dest: /var/lib/matchbox/assets
-    mode: '0440'
-  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+    mode: "0440"
+  loop: "{{ rhcos_mb_assets.results | selectattr('stat.size', 'undefined') | map(attribute='item') | list }}"
   when: matchbox and ocp_vms_openshift_prerelease is defined
   tags:
     - rhcos_mb_asset_files
 
 - name: Create matchbox profiles
-  template:
+  ansible.builtin.template:
     src: matchbox/profiles/{{ item }}.j2
     dest: /var/lib/matchbox/profiles/{{ item }}
-    mode: 0555
+    mode: "0555"
   with_items:
     - bootstrap.json
     - infnod.json
@@ -573,28 +594,28 @@
   when: matchbox
 
 - name: Create matchbox group files - bootstrap
-  template:
+  ansible.builtin.template:
     src: matchbox/groups/bootstrap.json.j2
     dest: /var/lib/matchbox/groups/{{ item.name }}.json
-    mode: 0555
+    mode: "0555"
   with_items:
     - "{{ bootstrap }}"
   when: matchbox
 
 - name: Create matchbox group files - masters
-  template:
+  ansible.builtin.template:
     src: matchbox/groups/master.json.j2
     dest: /var/lib/matchbox/groups/{{ item.name }}.json
-    mode: 0555
+    mode: "0555"
   with_items:
     - "{{ masters }}"
   when: matchbox
 
 - name: Create matchbox group files - infrastructure nodes
-  template:
+  ansible.builtin.template:
     src: matchbox/groups/infnod.json.j2
     dest: /var/lib/matchbox/groups/{{ item.name }}.json
-    mode: 0555
+    mode: "0555"
   with_items:
     - "{{ infras }}"
   when:
@@ -602,35 +623,39 @@
     - infras is defined
 
 - name: Create matchbox group files - workers
-  template:
+  ansible.builtin.template:
     src: matchbox/groups/cptnod.json.j2
     dest: /var/lib/matchbox/groups/{{ item.name }}.json
-    mode: 0555
+    mode: "0555"
   with_items:
     - "{{ workers }}"
   when: matchbox
 
 - name: Ensure group "matchbox" exists
-  group:
+  ansible.builtin.group:
     name: matchbox
     state: present
   when: matchbox
 
-- name: create matchbox user
-  user: name={{ item.name }} group={{ item.group }} shell={{ item.shell }} state=present
+- name: Create matchbox user
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    group: "{{ item.group }}"
+    shell: "{{ item.shell }}"
+    state: present
   with_items:
-    - { name: 'matchbox', group: 'matchbox', shell: '/sbin/nologin' }
+    - { name: "matchbox", group: "matchbox", shell: "/sbin/nologin" }
   when: matchbox
 
 - name: Get OCP4 installer Bios
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_rhcos_artifacts_url }}{{ rhcosmetalbiosfile }}"
     dest: /var/www/html/install/bios.raw.gz
-    mode: 0555
+    mode: "0555"
   when: not matchbox
 
 - name: Symlink bios.raw.gz when using matchbox
-  file:
+  ansible.builtin.file:
     src: /var/lib/matchbox/assets/{{ rhcosmetalbiosfile }}
     dest: /var/lib/matchbox/install/bios.raw.gz
     owner: root
@@ -643,15 +668,15 @@
     - ocp_vms_openshift_release is version('4.6', '<')
 
 - name: Start service firewalld, if not started
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Open up firewall ports
-  firewalld:
-    permanent: yes
-    immediate: yes
+  ansible.posix.firewalld:
+    permanent: true
+    immediate: true
     state: enabled
     port: "{{ item }}"
   with_items:
@@ -669,32 +694,34 @@
     - 69/udp
 
 - name: Best effort SELinux repair - DNS
-  shell: "restorecon -vR /var/named || true"
-
+  ansible.builtin.shell: "restorecon -vR /var/named || true"
+  changed_when: false
 - name: Best effort SELinux repair - Apache
-  shell: "restorecon -vR /var/www/html || true"
+  ansible.builtin.shell: "restorecon -vR /var/www/html || true"
+  changed_when: false
   when: not matchbox
 
 - name: Best effort SELinux repair - matchbox
-  shell: "restorecon -vR /var/lib/matchbox || true"
+  ansible.builtin.shell: "restorecon -vR /var/lib/matchbox || true"
+  changed_when: false
   when: matchbox
 
 - name: Create TFTP config
-  file:
+  ansible.builtin.file:
     path: /var/lib/tftpboot/pxelinux.cfg
     state: directory
-    mode: 0755
+    mode: "0755"
   when: not staticips
 
 - name: Create TFTP RHCOS dir
-  file:
+  ansible.builtin.file:
     path: /var/lib/tftpboot/rhcos
     state: directory
-    mode: 0755
+    mode: "0755"
   when: not staticips
 
 - name: Symlink kernel when using matchbox
-  file:
+  ansible.builtin.file:
     src: /var/lib/matchbox/assets/{{ rhcoskernelfile }}
     dest: /var/lib/tftpboot/rhcos/kernel
     owner: root
@@ -706,7 +733,7 @@
     - matchbox
 
 - name: Symlink initramfs.img when using matchbox
-  file:
+  ansible.builtin.file:
     src: /var/lib/matchbox/assets/{{ rhcosinitramfsfile }}
     dest: /var/lib/tftpboot/rhcos/initramfs.img
     owner: root
@@ -718,25 +745,29 @@
     - matchbox
 
 - name: Recursively change ownership of /var/lib/matchbox to matchbox.matchbox
-  file:
+  ansible.builtin.file:
     path: /var/lib/matchbox
     state: directory
-    recurse: yes
+    recurse: true
     owner: matchbox
     group: matchbox
 
 - name: SEBool allow haproxy connect any port
-  seboolean:
+  ansible.posix.seboolean:
     name: haproxy_connect_any
-    state: yes
-    persistent: yes
+    state: true
+    persistent: true
 
 - name: Copy over files needed for TFTP
-  shell: "cp -a /usr/share/syslinux/* /var/lib/tftpboot"
+  ansible.builtin.copy:
+    src: /usr/share/syslinux/
+    dest: /var/lib/tftpboot/
+    remote_src: true
+    mode: preserve
   when: not staticips
 
 - name: Symlink undionly.kpxe when using matchbox
-  file:
+  ansible.builtin.file:
     src: /usr/share/ipxe/undionly.kpxe
     dest: /var/lib/tftpboot/undionly.kpxe
     owner: root
@@ -748,58 +779,59 @@
     - matchbox
 
 - name: Get OCP4 installer initramfs
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_rhcos_artifacts_url }}{{ rhcosinitramfsfile }}"
     dest: /var/lib/tftpboot/rhcos/initramfs.img
-    mode: 0555
+    mode: "0555"
   when:
     - not staticips
     - not matchbox
 
 - name: Get OCP4 installer kernel
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_rhcos_artifacts_url }}{{ rhcoskernelfile }}"
     dest: /var/lib/tftpboot/rhcos/kernel
-    mode: 0555
+    mode: "0555"
   when:
     - not staticips
     - not matchbox
 
 - name: Set the default tftp file
-  template:
+  ansible.builtin.template:
     src: default.j2
     dest: /var/lib/tftpboot/pxelinux.cfg/default
-    mode: 0555
+    mode: "0644"
   when: not staticips
 
 - name: Installing TFTP Systemd util
-  copy:
+  ansible.builtin.copy:
     src: start-tftp.sh
     dest: /usr/local/bin/start-tftp.sh
-    mode: '0555'
+    mode: "0555"
   when: not staticips
 
 - name: Installing TFTP Systemd unit file
-  copy:
+  ansible.builtin.copy:
     src: util-tftp.service
     dest: /etc/systemd/system/util-tftp.service
-    mode: '0655'
+    mode: "0644"
   when: not staticips
 
 - name: Systemd daemon reload
-  systemd:
-    daemon_reload: yes
+  ansible.builtin.systemd:
+    daemon_reload: true
   when: not staticips
 
 - name: Set the local resolv.conf file
-  template:
+  ansible.builtin.template:
     src: bind/resolv.conf.j2
     dest: /etc/resolv.conf
+    mode: "0644"
 
-- name: "Starting {{ item }} service"
-  service:
+- name: Start and enable services (non-matchbox mode)
+  ansible.builtin.service:
     name: "{{ item }}"
-    enabled: yes
+    enabled: true
     state: started
   with_items:
     - named
@@ -809,10 +841,10 @@
   when:
     - not matchbox
 
-- name: "Starting {{ item }} service"
-  service:
+- name: Start and enable services (matchbox mode)
+  ansible.builtin.service:
     name: "{{ item }}"
-    enabled: yes
+    enabled: true
     state: started
   with_items:
     - named
@@ -823,30 +855,31 @@
     - matchbox
 
 - name: Get network interface name
-  shell: "nmcli con show --active | tail -1 | awk '{print $1}'"
+  ansible.builtin.shell: "nmcli con show --active | tail -1 | awk '{print $1}'"
   register: networkinterfacename
+  changed_when: false
 
 - name: Setting network interface name as a fact
-  set_fact:
+  ansible.builtin.set_fact:
     networkifacename: "{{ networkinterfacename.stdout }}"
 
-- name: Setting DNS server ip on network interface "{{ networkifacename }}" to 127.0.0.1
-  command: "nmcli con mod {{ networkifacename }}  ipv4.dns 127.0.0.1"
-
-- name: Setting DNS search path on network interface "{{ networkifacename }}" to "{{ dns.clusterid }}.{{ dns.domain }}"
-  command: "nmcli con mod {{ networkifacename }}  ipv4.dns-search {{ dns.clusterid }}.{{ dns.domain }}"
-
+- name: Set DNS server IP on primary network interface to 127.0.0.1
+  ansible.builtin.command: "nmcli con mod {{ networkifacename }} ipv4.dns 127.0.0.1"
+  changed_when: true
+- name: Set DNS search path on primary network interface
+  ansible.builtin.command: "nmcli con mod {{ networkifacename }} ipv4.dns-search {{ dns.clusterid }}.{{ dns.domain }}"
+  changed_when: true
 - name: Restarting NetworkManager to effect changes
-  service:
+  ansible.builtin.service:
     name: "{{ item }}"
     state: restarted
   with_items:
     - NetworkManager
 
 - name: Starting DHCP/PXE services
-  service:
+  ansible.builtin.service:
     name: "{{ item }}"
-    enabled: yes
+    enabled: true
     state: started
   with_items:
     - dhcpd
@@ -855,52 +888,56 @@
   when: not staticips
 
 - name: Unmasking Services
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ item }}"
-    enabled: yes
-    masked: no
+    enabled: true
+    masked: false
   with_items:
     - tftp
   when: not staticips
 
 - name: Create the oc4upi directory
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_user_dir }}/ocp4upi"
     state: directory
-    mode: 0700
+    mode: "0700"
   tags:
     - install_config
 
 - name: Copy install-config.yaml to oc4upi directory
-  copy:
-    src: "../ocp4upi/install-config.yaml"
+  ansible.builtin.copy:
+    src: "{{ ansible_playbook_pwd }}/ocp4upi/install-config.yaml"
     dest: "{{ ansible_user_dir }}/ocp4upi/install-config.yaml"
     owner: root
     group: root
-    mode: 0660
+    mode: "0660"
+    remote_src: true
   tags:
     - install_config
 
 - name: Include backup copy of install-config.yaml in oc4upi directory
-  copy:
-    src: "../ocp4upi/install-config.yaml"
+  ansible.builtin.copy:
+    src: "{{ ansible_playbook_pwd }}/ocp4upi/install-config.yaml"
     dest: "{{ ansible_user_dir }}/ocp4upi/install-config.yaml.bak"
     owner: root
     group: root
-    mode: 0660
+    mode: "0660"
+    remote_src: true
   tags:
     - install_config
 
 - name: Copy info script over
-  template:
+  ansible.builtin.template:
     src: checker.sh.j2
     dest: /usr/local/bin/utilnodecheck
     owner: root
     group: root
-    mode: 0555
+    mode: "0555"
 
-- name: noodle for OC client tarball - GA release
-  script: "../bin/noodle {{ ocp_clients_artifacts_url }} client-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
+- name: Noodle for OC client tarball - GA release
+  ansible.builtin.script: >-
+    {{ playbook_dir | dirname }}/bin/noodle
+    {{ ocp_clients_artifacts_url }} client-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}
   register: occlient
   retries: 4
   delay: 30
@@ -910,14 +947,14 @@
     - noodlin
 
 - name: Set OC client tarball file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     occlientfile: "{{ occlient.stdout | trim }}"
   when: occlient.rc is defined and occlient.rc == 0
   tags:
     - noodlin
 
-- name: noodle for OC client tarball - pre-release
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/ client-linux- rc"
+- name: Noodle for OC client tarball - pre-release
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/ client-linux- rc"
   register: occlient
   retries: 4
   delay: 30
@@ -927,20 +964,22 @@
     - noodlin
 
 - name: Set OC client tarball file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     occlientfile: "{{ occlient.stdout | trim }}"
   when: occlient.rc is defined and occlient.rc == 0
   tags:
     - noodlin
 
 - name: What is the OC client tarball file name?
-  debug: 
+  ansible.builtin.debug:
     var: occlientfile
   tags:
     - noodlin
 
-- name: noodle for OpenShift Installer tarball - GA release
-  script: "../bin/noodle {{ ocp_clients_artifacts_url }} install-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}"
+- name: Noodle for OpenShift Installer tarball - GA release
+  ansible.builtin.script: >-
+    {{ playbook_dir | dirname }}/bin/noodle
+    {{ ocp_clients_artifacts_url }} install-linux-{{ ocp_vms_openshift_release }} {{ ocp_vms_openshift_release }}
   register: ospinstaller
   retries: 4
   delay: 30
@@ -950,14 +989,14 @@
     - noodlin
 
 - name: Set OpenShift Installer tarball file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
   when: ospinstaller.rc is defined and ospinstaller.rc == 0
   tags:
     - noodlin
 
-- name: noodle for OpenShift Installer tarball - pre-release
-  script: "../bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/ install-linux- rc"
+- name: Noodle for OpenShift Installer tarball - pre-release
+  ansible.builtin.script: "{{ playbook_dir | dirname }}/bin/noodle https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/ install-linux- rc"
   register: ospinstaller
   retries: 4
   delay: 30
@@ -967,20 +1006,20 @@
     - noodlin
 
 - name: Set OpenShift Installer tarball file name as fact
-  set_fact:
+  ansible.builtin.set_fact:
     ospinstallerfile: "{{ ospinstaller.stdout | trim }}"
   when: ospinstaller.rc is defined and ospinstaller.rc == 0
   tags:
     - noodlin
 
 - name: What is the OpenShift Installer tarball file name?
-  debug: 
+  ansible.builtin.debug:
     var: ospinstallerfile
   tags:
     - noodlin
 
-- name: check if OC client tarball and/or OpenShift Installer tarball are present
-  stat: 
+- name: Check if OC client tarball and/or OpenShift Installer tarball are present
+  ansible.builtin.stat:
     path: /usr/local/src/{{ item }}
   loop:
     - "{{ occlientfile }}"
@@ -990,27 +1029,27 @@
     - oc_client_asset_files
 
 - name: Download OC client tarball and/or OpenShift Installer tarball - GA release
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ ocp_clients_artifacts_url }}{{ item }}"
     dest: /usr/local/src
-    mode: '0440'
-  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+    mode: "0440"
+  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined') | map(attribute='item') | list }}"
   when: ocp_vms_openshift_prerelease is not defined
   tags:
     - oc_client_asset_files
 
 - name: Download OC client tarball and/or OpenShift Installer tarball - pre-release
-  get_url:
+  ansible.builtin.get_url:
     url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/candidate/{{ item }}
     dest: /usr/local/src
-    mode: '0440'
-  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined' ) | map(attribute='item') | list }}"
+    mode: "0440"
+  loop: "{{ oc_client_assets.results | selectattr('stat.size', 'undefined') | map(attribute='item') | list }}"
   when: ocp_vms_openshift_prerelease is defined
   tags:
     - oc_client_asset_files
 
-- name: check again if OC client tarball and/or OpenShift Installer tarball are present
-  stat: 
+- name: Check again if OC client tarball and/or OpenShift Installer tarball are present
+  ansible.builtin.stat:
     path: /usr/local/src/{{ item }}
   loop:
     - "{{ occlientfile }}"
@@ -1020,47 +1059,49 @@
     - oc_client_asset_files
 
 - name: Unarchiving tarballs
-  unarchive:
+  ansible.builtin.unarchive:
     src: /usr/local/src/{{ item }}
     dest: /usr/local/bin
-    remote_src: yes
+    remote_src: true
   loop: "{{ oc_client_assets2.results | selectattr('stat.exists') | map(attribute='item') | list }}"
 
 - name: Removing files that are not needed
-  file:
+  ansible.builtin.file:
     path: /usr/local/bin/README.md
     state: absent
 
 - name: Downloading filetranspiler source
-  git:
+  ansible.builtin.git:
     repo: https://github.com/ashcrow/filetranspiler
     dest: /usr/local/src/filetranspiler
+    version: HEAD
   when: ocp_util_filetranspiler
 
 - name: Building filetranspiler
-  shell: "podman build /usr/local/src/filetranspiler -t filetranspiler:latest"
+  ansible.builtin.command: "podman build /usr/local/src/filetranspiler -t filetranspiler:latest"
+  changed_when: true
   when: ocp_util_filetranspiler
 
 - name: Installing filetranspiler
-  copy:
-    src: ../files/filetranspiler
+  ansible.builtin.copy:
+    src: filetranspiler
     dest: /usr/local/bin/filetranspiler
-    mode: 0555
+    mode: "0555"
   when: ocp_util_filetranspiler
 
 - name: Place ocp-approve-pending-csrs utility
-  copy:
-    src: ../files/ocp-approve-pending-csrs.sh
+  ansible.builtin.copy:
+    src: ocp-approve-pending-csrs.sh
     dest: /usr/local/bin/ocp-approve-pending-csrs.sh
-    mode: '0755'
+    mode: "0755"
   tags:
     - install_csr_utility
 
 - name: Download jq and place in /usr/local/bin
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
     dest: /usr/local/bin
-    mode: 0777
+    mode: "0777"
     checksum: sha256:af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44
     group: root
     owner: root
@@ -1068,7 +1109,7 @@
     - install_jq_utility
 
 - name: Create symlink for jq --> jq-linux64
-  file:
+  ansible.builtin.file:
     src: /usr/local/bin/jq-linux64
     dest: /usr/local/bin/jq
     owner: root
@@ -1079,49 +1120,50 @@
     - install_jq_utility
 
 - name: Install jp utility
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/jmespath/jp/releases/download/0.1.3/jp-linux-amd64
     dest: /usr/local/bin/jp
-    mode: '0755'
+    mode: "0755"
   tags:
     - install_jp_utility
 
 - name: Install yq utility
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/mikefarah/yq/releases/download/3.3.2/yq_linux_amd64
     dest: /usr/local/bin/yq
-    mode: '0755'
+    mode: "0755"
   tags:
     - install_yq_utility
 
 # Generate manifests, as we may need to modify prior to generating ignition configs in the future...
 - name: Execute openshift-install to create manifests
-  command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create manifests"
-
+  ansible.builtin.command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create manifests"
+  changed_when: true
 - name: Ensure that Pods will not be scheduled on the control plane machine(s)
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ ansible_user_dir }}/ocp4upi/manifests/cluster-scheduler-02-config.yml"
-    regexp: '^  mastersSchedulable'
-    line: '  mastersSchedulable: false'
+    regexp: "^  mastersSchedulable"
+    line: "  mastersSchedulable: false"
   tags:
     - cluster_scheduler
-  when: ocp_vms_openshift_release is version('4.2', '<=') or (ocp_vms_infra_count|int >= 1 and ocp_vms_worker_count|int >= 1) or (ocp_vms_infra_count|int >= 2 or ocp_vms_worker_count|int >= 2)
+  when: ocp_vms_openshift_release is version('4.2', '<=') or (ocp_vms_infra_count|int >= 1 and ocp_vms_worker_count|int >= 1) or (ocp_vms_infra_count|int >= 2
+    or ocp_vms_worker_count|int >= 2)
 
 - name: Execute openshift-install to create ignition-configs
-  command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create ignition-configs"
-
+  ansible.builtin.command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi create ignition-configs"
+  changed_when: true
 - name: Pause for 5 seconds to ensure ignition-configs are available
-  pause:
+  ansible.builtin.pause:
     seconds: 5
 
 - name: Copy ignition configs into the matchbox ignition directory
-  copy:
+  ansible.builtin.copy:
     src: "{{ ansible_user_dir }}/ocp4upi/{{ item }}"
     dest: /var/lib/matchbox/ignition/
     owner: matchbox
     group: matchbox
-    mode: 0660
-    remote_src: yes
+    mode: "0660"
+    remote_src: true
   with_items:
     - bootstrap.ign
     - master.ign
@@ -1130,33 +1172,35 @@
     - ignition_configs
 
 - name: Create .kube directory
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_user_dir }}/.kube"
     state: directory
     owner: root
     group: root
-    mode: 0660
+    mode: "0660"
 
 - name: Copy kubeconfig to .kube directory
-  copy:
+  ansible.builtin.copy:
     src: "{{ ansible_user_dir }}/ocp4upi/auth/kubeconfig"
     dest: "{{ ansible_user_dir }}/.kube/config"
     owner: root
     group: root
-    mode: 0660
-    remote_src: yes
+    mode: "0660"
+    remote_src: true
 
 - name: Copy kubelet bootstrap certs yaml over
-  copy:
+  ansible.builtin.copy:
     src: kubelet-bootstrap-cred-manager-ds.yaml
     dest: "{{ ansible_user_dir }}/kubelet-bootstrap-cred-manager-ds.yaml"
+    mode: "0644"
 
 - name: Copy CSR approval Ansible playbook over
-  copy:
+  ansible.builtin.copy:
     src: ocp-approve-csr.yaml
     dest: "{{ ansible_user_dir }}/ocp-approve-csr.yaml"
+    mode: "0644"
 
-- name: restart haproxy service
-  service:
+- name: Restart haproxy service
+  ansible.builtin.service:
     name: haproxy
     state: restarted

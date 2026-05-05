@@ -1,0 +1,14 @@
+---
+profile: production
+
+exclude_paths:
+  - roles/devnullcake.redhat-subscription/
+  # 04-ocp-storage-node.yaml references a tasks/storage.yml that does not yet exist
+  - playbooks/04-ocp-storage-node.yaml
+
+warn_list:
+  - run-once
+  - risky-shell-pipe
+  - latest[git]
+  # role-name: all roles use dashes per original naming; renaming is a deferred refactor
+  - role-name
