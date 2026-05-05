@@ -14,4 +14,4 @@
 
     - name: Deploy VMs for OCP4 Solo Lab
       ansible.builtin.import_role:
-        name: ocp4-solo-vmprovision
+        name: ocp4_solo_vmprovision

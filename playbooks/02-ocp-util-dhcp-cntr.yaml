@@ -7,7 +7,7 @@
   tasks:
     - name: "Build and configure utility dhcp container"
       ansible.builtin.import_role:
-        name: ocp4-solo-util-dhcp-cntr
+        name: ocp4_solo_util_dhcp_cntr
       vars:
         image: fedora:30
         container_name: build_container

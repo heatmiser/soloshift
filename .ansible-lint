@@ -10,5 +10,7 @@ warn_list:
   - run-once
   - risky-shell-pipe
   - latest[git]
-  # role-name: all roles use dashes per original naming; renaming is a deferred refactor
   - role-name
+  # var-naming[no-role-prefix]: many role variables (ocp_vms_*, rhcos*, networkifacename) are
+  # cross-role shared facts; prefixing them per role would require a full architectural refactor
+  - var-naming[no-role-prefix]

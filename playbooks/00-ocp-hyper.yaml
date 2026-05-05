@@ -34,7 +34,7 @@
 
     - name: "Configure host hypervisor system"
       ansible.builtin.import_role:
-        name: ocp4-solo-hypervisor
+        name: ocp4_solo_hypervisor
 
     - name: Print Ansible Distribution debug information
       vars:

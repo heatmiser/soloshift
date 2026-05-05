@@ -62,7 +62,7 @@
   tasks:
     - name: "Deploy Storage VM for OCP4 Solo Lab"
       import_role:
-        name: ocp4-solo-vmprovision
+        name: ocp4_solo_vmprovision
         tasks_from: storage
       tags: deploy_storage_node
 

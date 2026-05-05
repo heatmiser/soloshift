@@ -21,12 +21,12 @@
   tasks:
     - name: Install OCP pip modules
       ansible.builtin.import_role:
-        name: ocp4-solo-post-install
+        name: ocp4_solo_post_install
         tasks_from: ocp-pip-modules
 
     - name: Configure NFS storage
       ansible.builtin.import_role:
-        name: ocp4-solo-post-install
+        name: ocp4_solo_post_install
         tasks_from: nfs-storage
 
     - name: Display post-install information

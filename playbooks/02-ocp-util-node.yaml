@@ -12,7 +12,7 @@
 
     - name: Determine storage device name
       ansible.builtin.import_role:
-        name: ocp4-solo-utilnode
+        name: ocp4_solo_utilnode
         tasks_from: vm-storagedef.yml
       when: ocp_vms_storage_type == 'nfs'
 
@@ -255,13 +255,13 @@
 
     - name: "Configure utility node"
       ansible.builtin.import_role:
-        name: ocp4-solo-utilnode
+        name: ocp4_solo_utilnode
       when:
         - ocp_vms_util_node
 
     - name: Complete persistent storage related configuration
       ansible.builtin.import_role:
-        name: ocp4-solo-utilnode
+        name: ocp4_solo_utilnode
         tasks_from: nfs-storage.yml
       when:
         - ocp_vms_util_node

@@ -36,7 +36,7 @@
 
     - name: Install pip modules for OCP/K8s
       ansible.builtin.import_role:
-        name: ocp4-solo-post-install
+        name: ocp4_solo_post_install
         tasks_from: ocp-pip-modules
 
 - name: Query cluster details
@@ -45,7 +45,7 @@
   tasks:
     - name: Query cluster details for OCP4 Solo Lab
       ansible.builtin.import_role:
-        name: ocp4-solo-post-install
+        name: ocp4_solo_post_install
         tasks_from: query-cluster
       delegate_to: util
 
