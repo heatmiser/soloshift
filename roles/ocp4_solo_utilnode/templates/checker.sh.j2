@@ -7,21 +7,21 @@
 ##
 show_help () {
 echo "Usage:"
-echo "$(basename $0) {dns-masters|dns-workers|dns-etcd|install-info|haproxy|services}"
+echo "$(basename $0) {dns-controlplane|dns-workers|dns-etcd|install-info|haproxy|services}"
 echo ""
 }
 ##
-dns-masters () {
+dns-controlplane () {
 echo "======================"
-echo "DNS Config for Masters"
+echo "DNS Config for Control Plane"
 echo "======================"
 echo ""
-egrep --color=none -A 4 '^; Create entries for the master hosts' /var/named/zonefile.db
+egrep --color=none -A 4 '^; Create entries for the control-plane hosts' /var/named/zonefile.db
 echo ""
 echo "======================"
-echo "DNS Lookup for Masters"
+echo "DNS Lookup for Control Plane"
 echo "======================"
-{% for m in masters %}
+{% for m in controlplane %}
 echo ""
 echo "{{ m.name }}.{{ dns.clusterid }}.{{ dns.domain }}"
 echo "-------------------------------------------------"
@@ -115,8 +115,8 @@ for i in dhcpd named haproxy httpd tftp; do echo -e "Status of $i svc \t\t-> $(s
 ##################################################
 
 case "$1" in
-  dns-masters)
-    dns-masters
+  dns-controlplane)
+    dns-controlplane
     ;;
   dns-workers)
     dns-workers

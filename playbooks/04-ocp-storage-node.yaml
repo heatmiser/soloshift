@@ -69,9 +69,9 @@
 - hosts: util
   become: true
   tasks:
-    - name: "Update master DNS db file for {{ storage.name }}.{{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_openshift_rootdomain }}"
+    - name: "Update control-plane DNS db file for {{ storage.name }}.{{ ocp_vms_openshift_subdomain }}.{{ ocp_vms_openshift_rootdomain }}"
       blockinfile:
-        path: /var/named/primary/master.{{ dns.domain }}.db
+        path: /var/named/primary/{{ dns.domain }}.db
         marker: "; {mark} ANSIBLE MANAGED BLOCK {{ storage.name }}.{{ dns.clusterid }}.{{ dns.domain }}"
         insertafter: "^{{ util.name }}.{{ dns.clusterid }}"
         block: |

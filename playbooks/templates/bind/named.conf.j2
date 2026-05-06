@@ -86,7 +86,7 @@ zone "." IN {
 
 zone "{{ dns.domain }}" IN {
 	type	master;
-	file	"primary/master.{{ dns.domain }}.db";
+	file	"primary/{{ dns.domain }}.db";
 	allow-update { key "rndc-key"; };
 };
 
