@@ -4,7 +4,7 @@ ocp_vms_cpu_passthrough: true
 ocp_vms_no_log: false
 ocp_vms_preprovisioned: false
 ocp_vms_preprovisioned_basename: ocpbacking-x86_64-kvm.qcow2
-ocp_vms_password: ocp4ever
+ocp_vms_password:  # required: set in inventory/group_vars/all/my_vars.yaml or vault
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images
 ocp_vms_net_cidr: 10.0.0.0/24
 ocp_vms_net_nat: true

@@ -19,7 +19,7 @@ network  --bootproto=static --device=eth0 --gateway=10.10.0.1 --ip=10.10.0.20 --
 network  --hostname=osp-util
 
 # Root password
-rootpw --plaintext changeme
+rootpw --plaintext {{ ocp_vms_password }}
 # System services
 services --enabled="chronyd"
 # System timezone
@@ -72,8 +72,8 @@ pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
 # Choose RH username/password OR subscription org ID and subscription activation key (more precise)
 #rhn_username_org="RHaccountusername"
 #rhn_password_act_key="RHaccountpassword"
-rhn_username_org="11939617"
-rhn_password_act_key="rhdevkey"
+rhn_username_org="{{ redhat_subscription_org_id }}"
+rhn_password_act_key="{{ redhat_subscription_activationkey }}"
 rhn_pool_id=""
 echo "rhn_username_org     ==> $rhn_username_org"
 echo "rhn_password_act_key ==> $rhn_password_act_key"
