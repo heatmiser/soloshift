@@ -7,7 +7,7 @@ export KUBECONFIG="/root/ocp4upi/auth/kubeconfig";
 export oc=/usr/local/bin/oc
 ($oc get csr -oname | xargs $oc adm certificate approve) || true
 sleep 60
-workersrequested=$(yq r /root/ocp4upi/install-config.yaml.bak compute.[0].replicas)
+workersrequested=$(yq eval '.compute[0].replicas' /root/ocp4upi/install-config.yaml.bak)
 workersapproved=0
 until [ $workersapproved -eq $workersrequested ]; do
     $oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve 2> >(sed -e 's/^error.*CSRs\ must\ be\ specified.*/Continue\ CSR\ approval\ loop/' >&2);

@@ -1,0 +1,75 @@
+# System authorization (auth directive removed in RHEL 9; SHA-512 is the default)
+# Use CDROM installation media
+cdrom
+# Use text or graphical install?
+text
+# Run the Setup Agent on first boot
+firstboot --disable
+ignoredisk --only-use=sda
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+network  --bootproto=static --device=eth0 --gateway={{ dns.gateway }} --ip={{ util.ipaddr }} --nameserver={{ dns.forwarder1 }} --netmask={{ util.netmask }} --ipv6=auto --activate
+network  --hostname={{ util.name }}.{{ dns.clusterid }}.{{ dns.domain }}
+
+# Root password
+rootpw --plaintext {{ ocp_vms_password }}
+# System services
+services --enabled="chronyd"
+# System timezone
+timezone Etc/UTC --utc --ntpservers=0.rhel.pool.ntp.org,1.rhel.pool.ntp.org,2.rhel.pool.ntp.org,3.rhel.pool.ntp.org
+# System bootloader configuration
+zerombr
+bootloader --append=" crashkernel=auto" --location=mbr --boot-drive=sda
+# Partition clearing information
+clearpart --all --initlabel
+# Disk partitioning information
+part pv.156 --fstype="lvmpv" --ondisk=sda --size=29695
+part /boot --fstype="xfs" --ondisk=sda --size=1024
+volgroup vg0 --pesize=4096 pv.156
+logvol /  --fstype="xfs" --size=29184 --name=root --vgname=vg0
+logvol swap  --fstype="swap" --size=508 --name=swap --vgname=vg0
+shutdown
+
+%packages
+@core --nodefaults
+-biosdevname
+-dhclient
+-dhcp*
+-dracut-network
+-iprutils
+-iwl*firmware
+-NetworkManager*
+-plymouth*
+-postfix
+chrony
+kexec-tools
+%end
+
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end
+
+%post
+# Register Red Hat Subscription using org ID and activation key
+rhn_username_org="{{ redhat_subscription_org_id }}"
+rhn_password_act_key="{{ redhat_subscription_activationkey }}"
+echo "rhn_username_org     ==> $rhn_username_org"
+echo "rhn_password_act_key ==> $rhn_password_act_key"
+subscription-manager register --activationkey="$rhn_password_act_key" --org="$rhn_username_org"
+subscription-manager repos --disable="*"
+subscription-manager repos --enable="rhel-9-for-x86_64-baseos-rpms"
+subscription-manager repos --enable="rhel-9-for-x86_64-appstream-rpms"
+# Install latest repo update
+dnf -y update
+dnf -y install wget curl git
+%end

@@ -8,7 +8,7 @@ ocp_vms_password:  # required: set in inventory/group_vars/all/my_vars.yaml or v
 ocp_vms_libvirt_images_location: /var/lib/libvirt/images
 ocp_vms_net_cidr: 10.0.0.0/24
 ocp_vms_net_nat: true
-ocp_vms_utility_os: rhel7
+ocp_vms_utility_os: rhel9
 ocp_vms_utility_name: util
 ocp_vms_utility_cpus: 1
 ocp_vms_utility_size: 30
@@ -32,7 +32,7 @@ ocp_vms_storage_overcommit: false
 ocp_vms_console: true
 ocp_vms_no_auto_vm_console: true
 ocp_vms_el_url: http://packages.oit.ncsu.edu/centos/7/os/x86_64
-ocp_vms_openshift_release: 4.2
+ocp_vms_openshift_release: 4.16
 ocp_vms_openshift_subdomain: ocp4
 ocp_vms_openshift_rootdomain: example.com
 ocp_vms_openshift_pullsecret_file: pull-secret.txt

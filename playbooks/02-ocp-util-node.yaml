@@ -59,44 +59,21 @@
         - (redhat_subscription_username is defined) and (redhat_subscription_username is not none)
         - (redhat_subscription_password is defined) and (redhat_subscription_password is not none)
 
-    - name: "RHN registration and repo enablement - RHEL7"
+    - name: "RHN registration with subscription pool defined - RHEL 8/9"
       when:
-        - ansible_distribution == 'RedHat' and ansible_distribution_major_version | int <= 7
-        - ocp_vms_util_node
-
-      block:
-        - name: "RHN registration and repo enablement - RHEL7 - message output"
-          vars:
-            msg: RHN registration and repo enablement - RHEL7
-          ansible.builtin.debug:
-            msg: "{{ msg.split('\n') }}"
-
-        - name: "RHN registration and repo enablement - RHEL7"
-          ansible.builtin.import_role:
-            name: devnullcake.redhat-subscription
-          vars:
-            redhat_subscription_enable_explicit_repos_only: "yes"
-            redhat_subscription_disable_repos: []
-            redhat_subscription_enable_repos:
-              - rhel-7-server-rpms
-              - rhel-7-server-extras-rpms
-              - rhel-7-server-ansible-2.8-rpms
-          register: registration_result
-          failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
-    - name: "RHN registration with subscription pool defined - RHEL8"
-      when:
-        - ansible_distribution == 'RedHat' and ansible_distribution_major_version | int >= 8
+        - ansible_distribution == 'RedHat'
+        - ansible_distribution_major_version | int >= 8
         - redhat_subscription_pool_regex is not match("\^\$")
         - ocp_vms_util_node
 
       block:
-        - name: "RHN registration with subscription pool defined - RHEL8 - message output"
+        - name: "RHN registration with subscription pool defined - RHEL 8/9 - message output"
           vars:
-            msg: RHN registration with subscription pool defined - RHEL8
+            msg: "RHN registration with subscription pool defined - RHEL {{ ansible_distribution_major_version }}"
           ansible.builtin.debug:
             msg: "{{ msg.split('\n') }}"
 
-        - name: "RHN registration with subscription pool defined - RHEL8"
+        - name: "RHN registration with subscription pool - RHEL 8/9"
           ansible.builtin.import_role:
             name: devnullcake.redhat-subscription
           vars:
@@ -105,29 +82,29 @@
             redhat_subscription_enable_repos: []
           register: registration_result
           failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
-    - name: "RHN registration with repos enabled - RHEL8"
+    - name: "RHN registration with repos enabled - RHEL 8/9"
       when:
-        - ansible_distribution == 'RedHat' and ansible_distribution_major_version | int >= 8
+        - ansible_distribution == 'RedHat'
+        - ansible_distribution_major_version | int >= 8
         - redhat_subscription_pool_regex is match("\^\$")
         - ocp_vms_util_node
 
       block:
-        - name: "RHN registration with repos enabled - RHEL8 - message output"
+        - name: "RHN registration with repos enabled - RHEL 8/9 - message output"
           vars:
-            msg: RHN registration with repos enabled - RHEL8
+            msg: "RHN registration with repos enabled - RHEL {{ ansible_distribution_major_version }}"
           ansible.builtin.debug:
             msg: "{{ msg.split('\n') }}"
 
-        - name: "RHN registration with repos enabled - RHEL8"
+        - name: "RHN registration with repos enabled - RHEL 8/9"
           ansible.builtin.import_role:
             name: devnullcake.redhat-subscription
           vars:
             redhat_subscription_enable_explicit_repos_only: "yes"
             redhat_subscription_disable_repos: []
             redhat_subscription_enable_repos:
-              - rhel-8-for-x86_64-baseos-rpms
-              - rhel-8-for-x86_64-appstream-rpms
-              - ansible-2.9-for-rhel-8-x86_64-rpms
+              - "rhel-{{ ansible_distribution_major_version }}-for-x86_64-baseos-rpms"
+              - "rhel-{{ ansible_distribution_major_version }}-for-x86_64-appstream-rpms"
           register: registration_result
           failed_when: registration_result.rc != 0 and "This system is already registered" not in registration_result.stderr
     - name: Subscription-manager status
