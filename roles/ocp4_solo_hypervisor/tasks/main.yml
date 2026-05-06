@@ -20,28 +20,8 @@
   when:
     - ansible_distribution == 'Fedora'
 
-- name: Install base packages on CentOS/RHEL 7
-  ansible.builtin.yum:
-    name:
-      - vim
-      - bash-completion
-      - podman
-      - "@virtualization-hypervisor"
-      - "@virtualization-client"
-      - "@virtualization-platform"
-      - "@virtualization-tools"
-      - iptables-services
-      - libguestfs-tools
-      - libguestfs-xfs
-      - python-lxml
-      - python-netaddr
-      - libxml2
-    state: present
-  when:
-    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '7'
-
-- name: Install base packages on CentOS/RHEL 8
-  ansible.builtin.yum:
+- name: Install base packages on CentOS/RHEL 8+
+  ansible.builtin.dnf:
     name:
       - vim
       - bash-completion
@@ -57,15 +37,8 @@
       - python3-netaddr
     state: present
   when:
-    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
-
-- name: Update all packages
-  ansible.builtin.yum:
-    name: "*"
-    state: present
-  register: yumup_code
-  when:
-    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+    - ansible_distribution in ['CentOS', 'RedHat']
+    - ansible_distribution_major_version | int >= 8
 
 - name: Configure libvirt for remote TCP access (optional integration)
   when:
@@ -204,16 +177,11 @@
   changed_when: true
   when: "'virtual-host' not in tuned_adm.stdout"
 
-- name: Install libselinux-python package - CentOS/RHEL 7
-  ansible.builtin.yum:
-    name:
-      - libselinux-python
-  when:
-    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '7'
-
-- name: Install libselinux-python package - CentOS/RHEL 8
-  ansible.builtin.yum:
+- name: Install python3-libselinux package - CentOS/RHEL 8+
+  ansible.builtin.dnf:
     name:
       - python3-libselinux
+    state: present
   when:
-    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
+    - ansible_distribution in ['CentOS', 'RedHat']
+    - ansible_distribution_major_version | int >= 8
