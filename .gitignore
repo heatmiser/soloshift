@@ -16,3 +16,9 @@ ocp4upi
 
 # intermediate jinja templates
 playbooks/*.j2
+
+# Claude Code local settings (project-specific AI config, not for committing)
+.claude/
+
+# VScode settings (project-specific, not for committing)
+.vscode/

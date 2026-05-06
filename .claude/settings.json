@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(source /home/claude/workspace/ansible2.16.17/bin/activate && ansible-lint*)",
-      "Bash(source /home/claude/workspace/ansible2.16.17/bin/activate && PYTHONPATH=/home/claude/.local/lib/python3.12/site-packages ansible-lint*)"
-    ]
-  }
-}
