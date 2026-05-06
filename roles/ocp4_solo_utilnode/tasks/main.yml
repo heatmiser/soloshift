@@ -203,7 +203,7 @@
 - name: Write out forward zone file
   ansible.builtin.template:
     src: bind/zonefile.j2
-    dest: /var/named/primary/master.{{ dns.domain }}.db
+    dest: /var/named/primary/{{ dns.domain }}.db
     owner: named
     group: named
     mode: "0644"
@@ -509,7 +509,7 @@
   with_items:
     - bootstrap.json
     - infnod.json
-    - master.json
+    - controlplane.json
     - cptnod.json
   when: matchbox
 
@@ -522,13 +522,13 @@
     - "{{ bootstrap }}"
   when: matchbox
 
-- name: Create matchbox group files - masters
+- name: Create matchbox group files - control-plane
   ansible.builtin.template:
-    src: matchbox/groups/master.json.j2
+    src: matchbox/groups/controlplane.json.j2
     dest: /var/lib/matchbox/groups/{{ item.name }}.json
     mode: "0555"
   with_items:
-    - "{{ masters }}"
+    - "{{ controlplane }}"
   when: matchbox
 
 - name: Create matchbox group files - infrastructure nodes

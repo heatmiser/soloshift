@@ -41,7 +41,7 @@
 - name: Write out forward zone file for "{{ dns.domain }}"
   ansible.builtin.template:
     src: bind/zonefile.j2
-    dest: /srv/cntr_mounts/bind/configs/master.{{ dns.domain }}.db
+    dest: /srv/cntr_mounts/bind/configs/{{ dns.domain }}.db
     owner: named
     group: named
     mode: "0640"

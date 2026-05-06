@@ -85,12 +85,12 @@
         - "{{ bootstrap }}"
       failed_when: false
 
-    - name: Stop master vm(s)
+    - name: Stop control-plane vm(s)
       community.libvirt.virt:
         name: "{{ dns.clusterid }}.{{ item.name }}"
         state: destroyed
       with_items:
-        - "{{ masters }}"
+        - "{{ controlplane }}"
 
     - name: Stop infra vm(s)
       community.libvirt.virt:
@@ -178,21 +178,21 @@
       tags:
         - vm_image_path_dict
 
-    - name: Start master VM image path ini section
+    - name: Start control-plane VM image path ini section
       ansible.builtin.shell: >
         echo "" >> /tmp/vm_img_path.ini;
-        echo "[masters]" >> /tmp/vm_img_path.ini
+        echo "[controlplane]" >> /tmp/vm_img_path.ini
       changed_when: true
       tags:
         - vm_image_path_dict
 
-    - name: Record master VM image path
+    - name: Record control-plane VM image path
       ansible.builtin.shell: >
         imgpath=$(virsh domblklist {{ dns.clusterid }}.{{ item.name }} | grep {{ disk }} | awk '{print $2}');
         echo "{{ item.name }}.imgpath=$imgpath" >> /tmp/vm_img_path.ini
       changed_when: true
       with_items:
-        - "{{ masters }}"
+        - "{{ controlplane }}"
       tags:
         - vm_image_path_dict
 
@@ -251,12 +251,12 @@
         - "{{ bootstrap }}"
       failed_when: false
 
-    - name: Undefine master vm(s)
+    - name: Undefine control-plane vm(s)
       community.libvirt.virt:
         name: "{{ dns.clusterid }}.{{ item.name }}"
         command: undefine
       with_items:
-        - "{{ masters }}"
+        - "{{ controlplane }}"
 
     - name: Undefine infra vm(s)
       community.libvirt.virt:
@@ -293,15 +293,15 @@
       with_items:
         - "{{ bootstrap }}"
 
-    - name: Remove master vm image file(s)
+    - name: Remove control-plane vm image file(s)
       vars:
-        vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=masters file=/tmp/vm_img_path.ini') }}"
+        vm_image_path: "{{ lookup('ini', '{{ item.name }}.imgpath section=controlplane file=/tmp/vm_img_path.ini') }}"
       ansible.builtin.shell: >
         virt-format -a {{ vm_image_path }};
         rm -f {{ vm_image_path }}
       changed_when: true
       with_items:
-        - "{{ masters }}"
+        - "{{ controlplane }}"
 
     - name: Remove infra vm image file(s)
       vars:

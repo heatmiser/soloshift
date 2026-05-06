@@ -3,219 +3,210 @@ Ansible automation for deploying a local "all in one" OpenShift 4 cluster
 
 # Overview
 
-While single system installation of OpenShift 4 is also made possible via [Red Hat CodeReady Containers](https://developers.redhat.com/blog/2019/09/05/red-hat-openshift-4-on-your-laptop-introducing-red-hat-codeready-containers/), some users desire a more complete single system installation of OpenShift 4 that more closely resembles a full, multi-system OpenShift 4 cluster deployment, whether that be for laptop installation or single server lab deployments.
+While single system installation of OpenShift 4 is also made possible via [Red Hat OpenShift Local](https://developers.redhat.com/products/openshift-local/overview), some users desire a more complete single system installation of OpenShift 4 that more closely resembles a full, multi-system OpenShift 4 cluster deployment, whether that be for server lab deployments or development environments.
 
 # Cluster components
 
-By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three master nodes and two worker nodes, with the zero representing optional infrastructure nodes.  In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, haproxy, and NFS storage services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes.  Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
+By default, soloshift deploys a 3-0-2 OpenShift 4.x cluster stack comprised of three control-plane nodes and two worker nodes, with the zero representing optional infrastructure nodes. In addition, a single utility node is deployed that provides DHCP, tftp, DNS, matchbox, haproxy, and NFS storage services, as well as serving as a location for the OpenShift 4 User Provided Infrastructure installation directory. If base system resources can support it, the cluster can be expanded to utilize multiple infrastructure nodes, as well as additional worker nodes. Analyzing the available system resources to see if supporting additional nodes is possible is left as an exercise to the end user.
 
-Requirements
-------------
+# Requirements
 
-A Linux KVM hypervisor OS, preferably RHEL/CentOS/Fedora with a minimum of 32GB RAM, however, more is recommended. Note that work is in progress to see if installations on Macs can be supported.
+A Linux KVM hypervisor running **RHEL 8/9 or Fedora** with a minimum of 48GB RAM; 64GB or more is strongly recommended for stable operation of all three control-plane nodes plus workers. The utility node runs RHEL 9 by default.
 
-Installation
-------------
+> **NOTE**: CentOS 7 and RHEL 7 are no longer supported hypervisor or utility node operating systems.
 
-The system where commands are to be executed is listed in parentheses next to the shell prompt. All commands are to be executed as a non-root user with sudo capabilities, unless otherwise noted in the instructions preceding a step.
+# Installation
 
-For CentOS hypervisors, skip to step 2.
+The system where commands are to be executed is listed in parentheses next to the shell prompt. All commands are to be executed as a non-root user with sudo capabilities, unless otherwise noted.
 
-For Fedora hypervisors, skip to step 3.
+## 1. Register and configure the hypervisor (RHEL only)
 
-1) If you're using RHEL for the base hypervisor OS, then you'll need to register the system and configure the system subscription first.
+As root, or via sudo, register using an organization ID and activation key:
 
-As root, or via sudo:
+```
+(hypervisor)# subscription-manager register --activationkey="your_key_name" --org="your_org_id"
+```
 
-- Red Hat username and password
+Or using username and password:
 
-`(hypervisor)# subscription-manager register --username="your_user_name" --password="your_user_password"`
+```
+(hypervisor)# subscription-manager register --username="your_user_name" --password="your_user_password"
+(hypervisor)# subscription-manager attach --pool=<pool_id_string>
+```
 
-> **NOTE**: Leave out the --password switch if you want to enter your password interactively and not record password in shell history.
+Enable the required repositories:
 
-> **NOTE**: Utilizing username/password will require a subsequent step to attach a subscription, see Red Hat documentation for requisite procedure if needed. For example:
+**RHEL 8:**
+```
+(hypervisor)# subscription-manager repos --disable="*"
+(hypervisor)# subscription-manager repos --enable="rhel-8-for-x86_64-baseos-rpms"
+(hypervisor)# subscription-manager repos --enable="rhel-8-for-x86_64-appstream-rpms"
+```
 
-`(hypervisor)# subscription-manager attach --pool=<pool_id_string>`
+**RHEL 9:**
+```
+(hypervisor)# subscription-manager repos --disable="*"
+(hypervisor)# subscription-manager repos --enable="rhel-9-for-x86_64-baseos-rpms"
+(hypervisor)# subscription-manager repos --enable="rhel-9-for-x86_64-appstream-rpms"
+```
 
-- ...or Red Hat organization ID and activation key:
+## 2. Install Ansible and git
 
-`(hypervisor)# subscription-manager register --activationkey="your_key_name" --org="your_org_id#"`
+**RHEL 8/9:**
+```
+(hypervisor)# dnf -y install git ansible-core
+```
 
-...then:
+**Fedora:**
+```
+(hypervisor)# dnf -y install git ansible-core
+```
 
-| RHEL 7.x hypervisors |
-|:-:|
+## 3. Clone the repository
 
-`(hypervisor)# subscription-manager repos --disable="*"`
+```
+(hypervisor)# git clone https://github.com/heatmiser/soloshift.git
+(hypervisor)# cd soloshift
+```
 
-`(hypervisor)# subscription-manager repos --enable="rhel-7-server-rpms"`
+## 4. Configure your deployment variables
 
-`(hypervisor)# subscription-manager repos --enable="rhel-7-server-extras-rpms"`
+Copy the default variables file to create your local overrides file:
 
-`(hypervisor)# subscription-manager repos --enable="rhel-7-server-ansible-2.8-rpms"`
+```
+(hypervisor)# cp inventory/group_vars/all/default_vars.yaml inventory/group_vars/all/my_vars.yaml
+```
 
-| RHEL 8.x hypervisors |
-|:-:|
+Edit `inventory/group_vars/all/my_vars.yaml` and set the following variables:
 
-`(hypervisor)# subscription-manager repos --enable ansible-2.9-for-rhel-8-x86_64-rpms`
+### Red Hat subscription credentials (for the utility VM)
 
-2) CentOS hypervisors only
+Choose either organization ID + activation key **or** username + password — leave the other pair undefined.
 
-`(hypervisor)# yum -y install epel-release`
+- `redhat_subscription_org_id`: Subscription organization ID (required when using an activation key). If the value is all digits, surround it in double quotes.
+- `redhat_subscription_activationkey`: Activation key to use for host registration.
+- `redhat_subscription_username`: Red Hat username (if not using an activation key).
+- `redhat_subscription_password`: Red Hat password (if not using an activation key).
+- `redhat_subscription_pool_regex`: If using username/password, supply a regex to match the desired subscription pool. For example: `"^Red Hat Enterprise Linux$"`
 
-3) 
+### Core deployment variables
 
-<center>
+- `ocp_vms_base_image`: Name of the RHEL 9 KVM guest image downloaded from https://access.redhat.com/downloads. Example: `rhel-9.4-x86_64-kvm.qcow2`. Place the image in the directory defined by `ocp_vms_libvirt_images_location`.
+- `ocp_vms_password`: Root password for the utility VM. **Required** — no default is set.
+- `ocp_vms_openshift_release`: OpenShift version to deploy. Example: `"4.16"`.
+- `ocp_vms_openshift_subdomain`: Top-level DNS sub-domain name. Example: `ocp416`.
+- `ocp_vms_openshift_rootdomain`: Base DNS second-level domain. Example: `local.dc`.
+- `ocp_vms_libvirt_images_location`: VM image storage directory. Default: `/var/lib/libvirt/images/`.
+- `ocp_vms_net_cidr`: Internal subnet for the cluster. Default: `192.168.8.0/24`.
+- `ocp_vms_master_count`: Number of control plane nodes. Default: `3`.
+- `ocp_vms_infra_count`: Number of infrastructure nodes. Default: `0`.
+- `ocp_vms_worker_count`: Number of worker nodes. Default: `2`.
+- `ocp_vms_storage_type`: External storage type. Default: `nfs`. Set to `false` for ephemeral storage.
+- `ocp_vms_openshift_pullsecret_file`: Pull secret filename. Default: `pull-secret.txt`. Download from https://console.redhat.com/openshift/install/metal/user-provisioned.
 
-| Fedora hypervisors only | CentOS/RHEL hypervisors only |
-|:-:|:-:|
-| `(hypervisor)# dnf -y install git ansible` |  `(hypervisor)# yum -y install git ansible` |
+### Storage space considerations
 
-</center>
+By default, soloshift deploys VMs utilizing sparse backing files. If the size of the requested backing file exceeds the total available space in the volume defined by `ocp_vms_libvirt_images_location`, the deploy will fail. To enable storage overcommit:
 
-4) Continue...
+```yaml
+ocp_vms_storage_overcommit: true
+```
 
-`(hypervisor)# git clone https://github.com/heatmiser/soloshift.git`
+> **NOTE**: A minimal soloshift installation (1 control-plane, 1 infra, 1 worker, 1 utility node) requires approximately 40GB of disk space to complete. Additional space is consumed over time as the cluster is used.
 
-`(hypervisor)# cd soloshift`
+> **NOTE**: Storage overcommit can lead to completely filling the volume. Monitor capacity accordingly.
 
-Copy `inventory/group_vars/all/default_vars.yaml`
-to `inventory/group_vars/all/my_vars.yaml`
+If you'd like to adjust vCPU counts, memory, or disk sizes, edit `roles/ocp4_solo_vmprovision/defaults/main.yml` before proceeding. The default values represent the minimum viable configuration. A minimum of 48GB hypervisor RAM is recommended; 64GB significantly improves stability.
 
-Next, edit `inventory/group_vars/all/my_vars.yaml`
-
-SoloShift employs a utility VM to run the OpenShift 4 User Provided Infrastructure installation, as well as to provide base infrastructure services, such as DHCP, tftp, DNS, matchbox, haproxy, and NFS storage.
-
-If utilizing RHEL for the utility VM, choose either pair of:
-
-- organization ID and activation key
-  
-or
-
-- username and password 
-
-...and leave the other pair undefined.
-
-* `redhat_subscription_org_id`: Subscription organization ID. If using an activation key, this is required. If comprised of all numbers, surround in double-quotes.
-* `redhat_subscription_activationkey`: Activation key to use for host registration.
-
-* `redhat_subscription_username`: If not using an activation key, specify Red Hat username. 
-* `redhat_subscription_password`: If not using an activation key, specify Red Hat password.
-* `redhat_subscription_pool_regex`: If utilizing username/password, supply a regex to match on the desired pool. For example, to match on a subscription pool named Red Hat Enterprise Server, use "^Red Hat Enterprise Server$"
-
-* `ocp_vms_base_image`: rhel-server-7.8-x86_64-kvm.qcow2 - enter name of RHEL KVM Guest image downloaded from https://access.redhat.com/downloads --also, Fedora or CentOS cloud KVM qcow2 images can be used as well
-* `ocp_vms_openshift_release`: 4.9 - OpenShift version to deploy; 4.1, 4.2, ..., 4.9 or pre-release (4.10 is in dev)
-* `ocp_vms_openshift_subdomain`: ocp4 - name for top level DNS sub-domain
-* `ocp_vms_openshift_rootdomain`: domain.com - base DNS second-level domain
-* `ocp_vms_libvirt_images_location`: Using a vm image storage location different than the default?  Define it here.
-* `ocp_vms_net_cidr`: 192.168.8.0/24 - internal subnet for cluster to use
-* `ocp_vms_master_count`: 3
-* `ocp_vms_infra_count`: 0
-* `ocp_vms_worker_count`: 2
-* `ocp_vms_storage_type`: nfs - default external storage type, set to false to turn it off
-* `ocp_vms_openshift_pullsecret_file`: pull-secret.txt - download from https://cloud.redhat.com/openshift/install/metal/user-provisioned
-
-By default, SoloShift deploys VMs utilizing sparse backing files.  When creating VMs, if the size of the requested backing file is greater than the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`, the deploy automation will fail. If you would like to implement storage overcommit in order to bypass this limitation, add the following line to `inventory/group_vars/all/my_vars.yaml`:
-
-* `ocp_vms_storage_overcommit: True`
-
-> **NOTE**: A basic installation utilizing soloshift (with default values) to deploy an OpenShift 4 cluster comprised of 1 master, 1 infrastructure, and 1 worker, with one utility node will require just under 40GB of space to complete the installation. Additional space will be required over time as the cluster is used.
-
-> **NOTE**: Storage overcommit can potentially lead to completely filling the total amount of space available in the volume containing the directory defined by `ocp_vms_libvirt_images_location`. Be sure to keep this in mind and monitor overall volume capacity.
-
-Deploy All-in-One OCP4
-------------
+# Deploy All-in-One OCP4
 
 Place `pull-secret.txt` in the root of the soloshift directory.
 
-Download your VM image of choice (RHEL8 KVM qcow2 guest image, for example) and place it in the directory defined by `ocp_vms_libvirt_images_location`. Then, update `ocp_vms_base_image` with the name of the image. If you have configured a non-standard VM images directory location, place the VM image there and make sure to update `ocp_vms_libvirt_images_location` to reflect that location.
+Download the RHEL 9 KVM guest image from https://access.redhat.com/downloads and place it in the directory defined by `ocp_vms_libvirt_images_location`. Update `ocp_vms_base_image` in `my_vars.yaml` with the exact filename.
 
-If you'd like to adjust the number of vcpus, memory, ram, or disk sizes of the various VM nodes, edit
-`roles/ocp4-solo-vmprovision/defaults/main.yml` before proceeding. The default values are as low as you should go for successful installations. A minimum base hypervisor RAM of 32GB is required, however, there is potential for VMs to be stopped if the OOM killer is enabled on the hypervisor. Laptop installation was one of the original goals for soloshift, however, the requirement for 3 master nodes has raised the miminum recommended RAM beyond the capabilities of most laptops. 48GB of RAM is more likely to ensure sucess, with 64GB RAM being a more realistic minimum RAM specification.
+Install required Ansible roles and collections, then execute the deployment playbooks in order:
 
-Now, continue to install required Ansible roles and execute OCP deploy playbooks:
+```
+(hypervisor)# ansible-galaxy role install -p ./roles -r requirements.yaml
+(hypervisor)# ansible-galaxy collection install -r requirements.yaml
 
-`(hypervisor)# ansible-galaxy install -p ./roles -r requirements.yaml`
+(hypervisor)# ansible-playbook playbooks/00-ocp-hyper.yaml
+(hypervisor)# ansible-playbook playbooks/01-ocp-vms.yaml
+(hypervisor)# ansible-playbook playbooks/02-ocp-util-node.yaml
+(hypervisor)# ansible-playbook playbooks/03-ocp-init.yaml
+```
 
-`(hypervisor)# ansible-playbook playbooks/00-ocp-hyper.yaml`
+> **NOTE**: The `03-ocp-init.yaml` playbook includes log monitoring tasks that relay the status of the bootstrap and installation process. You can also monitor progress via the haproxy status page at `http://<util_node_ip>:9000` (default: `http://192.168.8.8:9000`).
 
-`(hypervisor)# ansible-playbook playbooks/01-ocp-vms.yaml`
+When the `03-ocp-init.yaml` playbook finishes with "Install complete!", proceed to storage configuration.
 
-`(hypervisor)# ansible-playbook playbooks/02-ocp-util-node.yaml`
+# Storage Configuration
 
-`(hypervisor)# ansible-playbook playbooks/03-ocp-init.yaml`
+## External NFS Storage (default)
 
-> **NOTE**: While all playbooks provide output to the console to convey overall playbook progress, the 03-ocp-init.yaml playbook has additional installation log monitoring tasks that will relay the status of the deployment.
+```
+(hypervisor)# ansible-playbook playbooks/04-ocp-nfs-storage.yaml
+```
 
-You can also view the status of the bootstrap and install process as nodes come and go by checking out the haproxy status page at http://192.168.8.8:9000
+## Simple Ephemeral Storage
 
-Eventually, you should see a debug message in the shell where the 03-ocp-init.yaml playbook is running: "Install complete!"
+If ephemeral storage is desired, set `ocp_vms_storage_type: false` in `my_vars.yaml` before deploying. Once `03-ocp-init.yaml` has finished, SSH into the utility VM and patch the image registry:
 
-At this point, OpenShift storage needs to be finalized. Currently two options are available: external NFS storage (default) or simple ephemeral storage.
+```
+(hypervisor)# ssh -i ~/.ssh/<ocp_vms_openshift_subdomain>_id_ecdsa root@192.168.8.8
+```
 
-| External NFS Storage |
-|:-:|
-If you opted for utilizing the default option, external NFS storage on the util node, then execute the following playbook:
+```
+(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
+    --type merge \
+    --patch '{"spec":{"storage":{"emptyDir":{}}}}'
+(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
+    --type merge \
+    --patch '{"spec":{"managementState":"Managed"}}'
+```
 
-`(hypervisor)# ansible-playbook playbooks/04-ocp-nfs-storage.yaml`
+If you receive "cluster does not exist", wait a moment and retry.
 
-| Simple Ephemeral Storage |
-|:-:|
-Or if simple, ephemeral storage is desired, prior to deploying the cluster, set the variable `ocp_vms_storage_type` to `false` and then proceed with the following steps once the 03-ocp-init.yaml playbook has finalized with the "Install complete!" message.
+# Final Steps
 
-Either access the util vm console via virt-viewer or use another shell and ssh into the util vm as root. `ocp_vms_password` is the root password, set in the defaults for the `ocp4-solo-vmprovision` role. If you left `ocp_vms_net_cidr` at the default internal subnet to use, then the util node will be at 192.168.8.8.  There will be an SSH key pair in your user's .ssh directory prefixed with whatever was set for `ocp_vms_openshift_subdomain`.  You can use that private key to ssh in to the util node as root. For example, from a shell on the hypervisor (`ocp_vms_openshift_subdomain` set to `ocp4` and default `ocp_vms_net_cidr`):
+Once storage is configured, add cluster endpoints to your hypervisor's `/etc/hosts`. Using default values with `ocp_vms_openshift_subdomain: ocp416` and `ocp_vms_openshift_rootdomain: local.dc`:
 
-`(hypervisor)# ssh -i ~/.ssh/ocp4_id_ecdsa root@192.168.8.8`
+```
+192.168.8.8 console-openshift-console.apps.ocp416.local.dc
+192.168.8.8 oauth-openshift.apps.ocp416.local.dc
+192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp416.local.dc
+192.168.8.8 grafana-openshift-monitoring.apps.ocp416.local.dc
+```
 
-At this point, patch the image registry to use local storage:
+Add additional entries for any application routes created during cluster use.
 
-> **NOTE**: Adding persistent storage options (NFS, iSCSI, etc) to soloshift is a work in progress 
+# Cluster Shutdown and Restart Support
 
-	(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
-		--type merge \
-		--patch '{"spec":{"storage":{"emptyDir":{}}}}'
-	(util)# oc patch configs.imageregistry.operator.openshift.io cluster \
-	    --type merge \
-        --patch '{"spec":{"managementState":"Managed"}}'
+If you plan on shutting down your cluster periodically, you must prepare it to handle certificate rotation on restart. This requires deploying a DaemonSet that refreshes the kubelet bootstrap credential and rotating the CSR signer secrets. See [this post](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) for background.
 
-If you receive a message like "cluster does not exist" or "cluster not found", wait a bit and rerun.
+While logged into the utility VM as root:
 
-Final Steps
-------------
+```
+(util)# oc apply -f $HOME/kubelet-bootstrap-cred-manager-ds.yaml
+(util)# oc delete secrets/csr-signer-signer secrets/csr-signer -n openshift-kube-controller-manager-operator
+```
 
-Once either storage setup option has been completed, the installation is complete. Edit your hypervisor's /etc/hosts file to include some of the endpoints utilized by OpenShift.  For example if using all defaults, your /etc/hosts entries would look like this:
+Watch Cluster Operators recover:
 
-	192.168.8.8 console-openshift-console.apps.ocp46.local.dc
-	192.168.8.8 oauth-openshift.apps.ocp46.local.dc
-	192.168.8.8 prometheus-k8s-openshift-monitoring.apps.ocp46.local.dc
-	192.168.8.8 grafana-openshift-monitoring.apps.ocp46.local.dc
+```
+(util)# watch oc get clusteroperators
+```
 
-In addition, you'll need to add the FQDN for any additional routes created for applications while you use OpenShift.  Utilization of wildcard DNS entries is in the works. See below for additional instructions for utilizing [xip.io](http://xip.io/) to enable route name resolution without additional hosts file entries.
+Once all operators show `Available=True, Progressing=False, Degraded=False`, the cluster can be safely shut down.
 
-If you plan on shutting down your OpenShift 4 cluster from time to time (laptop, cloud deployment, educational/lab), we'll need to create a DaemonSet that pulls down the same service account token bootstrap credential used on all the non-master nodes in the cluster and then delete a couple of key, related secrets. This will trigger the Cluster Operators to re-create the CSR signer secrets used to sign the kubelet client certificate CSRs when the cluster starts back up. [Follow this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) for a detailed background explanation as to why we need to do this.
+If the cluster missed the initial 24-hour certificate rotation after a previous unclean shutdown, some nodes may be in `NotReady` state. Follow the recovery steps at the link above. An Ansible playbook `ocp-approve-csr.yaml` is included in the root user's home directory to assist with the CSR approval process.
 
-Execute the following steps, again, while logged in to the util node as root:
+# Tear Down
 
-`(util)# oc apply -f $HOME/kubelet-bootstrap-cred-manager-ds.yaml`
+```
+(hypervisor)# ansible-playbook playbooks/99-ocp-wipe.yaml
+```
 
-`(util)# oc delete secrets/csr-signer-signer secrets/csr-signer -n openshift-kube-controller-manager-operator`
-
-This will trigger the Cluster Operators to re-create the CSR signer secrets. You can watch progress as various operators switch from Progressing=False to Progressing=True and back to Progressing=False:
-
-`(util)# watch oc get clusteroperators`
-
-Once all Cluster Operators show Available=True, Progressing=False and Degraded=False the cluster can be safely shutdown.
-
-If you did not re-create the CSR signer secrets used to sign the kubelet client certificate CSRs and the cluster missed the initial 24 hour certificate rotation, some nodes in the cluster may be in the NotReady state. Follow the instructions at the end of [this link](https://blog.openshift.com/enabling-openshift-4-clusters-to-stop-and-resume-cluster-vms/) to rectify.  An Ansible playbook `ocp-approve-csr.yaml` has been included in the root user's home dir that can be run as part of the rectification process.
-
-Enjoy your OpenShift 4 cluster environment!  When you're ready to tear everything down, execute:
-
-`(hypervisor)# cd soloshift`
-
-`(hypervisor)# ansible-playbook playbooks/99-ocp-wipe.yaml`
-
-
-Utilizing xip.io for application base subdomain name resolution
-------------
+# Route Resolution
 
 [Route resolution via xip.io](https://github.com/heatmiser/soloshift/blob/master/route_resolution.md)

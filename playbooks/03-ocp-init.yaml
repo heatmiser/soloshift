@@ -11,15 +11,15 @@
       ansible.builtin.pause:
         seconds: 60
 
-- name: Start master VMs
+- name: Start control-plane VMs
   hosts: hypervisor
   tasks:
-    - name: Start master VM(s)
+    - name: Start control-plane VM(s)
       ansible.builtin.include_tasks: includes/virt-node-start.yaml
       with_items:
-        - "{{ masters }}"
+        - "{{ controlplane }}"
 
-    - name: Pause for 3 minutes to allow master VM(s) to come up and update to latest OS release
+    - name: Pause for 3 minutes to allow control-plane VM(s) to come up and update to latest OS release
       ansible.builtin.pause:
         seconds: 180
 
