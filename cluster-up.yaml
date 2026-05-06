@@ -1,7 +1,13 @@
-#!/usr/bin/env ansible-playbook
+---
+# !/usr/bin/env ansible-playbook
 
-#- import_playbook: playbooks/00-ocp-hyper.yaml
-- import_playbook: playbooks/01-ocp-vms.yaml
-- import_playbook: playbooks/02-ocp-util-node.yaml
-- import_playbook: playbooks/03-ocp-init.yaml
-- import_playbook: playbooks/clear-cache.yaml
+# - name: Configure hypervisor host
+#   ansible.builtin.import_playbook: playbooks/00-ocp-hyper.yaml
+- name: Provision KVM virtual machines
+  ansible.builtin.import_playbook: playbooks/01-ocp-vms.yaml
+- name: Configure utility node
+  ansible.builtin.import_playbook: playbooks/02-ocp-util-node.yaml
+- name: Initialize OpenShift cluster
+  ansible.builtin.import_playbook: playbooks/03-ocp-init.yaml
+- name: Clear kernel page cache
+  ansible.builtin.import_playbook: playbooks/clear-cache.yaml

@@ -1,8 +1,9 @@
 ---
-- name: "Booting {{ dns.clusterid }}.{{ item.name }}"
-  virt:
+- name: Boot VM
+  community.libvirt.virt:
     name: "{{ dns.clusterid }}.{{ item.name }}"
     state: running
+
 - name: Pause for 30 seconds to allow multiple boot offsets
-  pause:
+  ansible.builtin.pause:
     seconds: 30

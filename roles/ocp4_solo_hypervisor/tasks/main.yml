@@ -1,0 +1,219 @@
+---
+# Setup OCP4 Solo Lab Hypervisor Node
+
+- name: Install base packages on Fedora
+  ansible.builtin.dnf:
+    name:
+      - vim
+      - bash-completion
+      - podman
+      - "@virtualization"
+      - guestfs-browser
+      - libguestfs-tools
+      - python-libguestfs
+      - virt-top
+      - ksmtuned
+      - python2-netaddr
+      - python3-netaddr
+      - libxml2
+    state: present
+  when:
+    - ansible_distribution == 'Fedora'
+
+- name: Install base packages on CentOS/RHEL 7
+  ansible.builtin.yum:
+    name:
+      - vim
+      - bash-completion
+      - podman
+      - "@virtualization-hypervisor"
+      - "@virtualization-client"
+      - "@virtualization-platform"
+      - "@virtualization-tools"
+      - iptables-services
+      - libguestfs-tools
+      - libguestfs-xfs
+      - python-lxml
+      - python-netaddr
+      - libxml2
+    state: present
+  when:
+    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '7'
+
+- name: Install base packages on CentOS/RHEL 8
+  ansible.builtin.yum:
+    name:
+      - vim
+      - bash-completion
+      - podman
+      - "@virtualization-hypervisor"
+      - "@virtualization-client"
+      - "@virtualization-platform"
+      - "@virtualization-tools"
+      - iptables-services
+      - libguestfs-tools
+      - libguestfs-xfs
+      - python3-lxml
+      - python3-netaddr
+    state: present
+  when:
+    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
+
+- name: Update all packages
+  ansible.builtin.yum:
+    name: "*"
+    state: present
+  register: yumup_code
+  when:
+    - ansible_distribution == 'RedHat' or ansible_distribution == 'CentOS'
+
+- name: Configure libvirt for remote TCP access (optional integration)
+  when:
+    - ocp_vms_libvirt_integration
+  block:
+    - name: Configure libvirtd.conf - listen_tls = 0
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: "listen_tls ="
+        line: listen_tls = 0
+
+    - name: Configure libvirtd.conf - listen_tcp = 1
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: "listen_tcp ="
+        line: listen_tcp = 1
+
+    - name: Configure libvirtd.conf - auth_tcp="none"
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: "auth_tcp="
+        line: auth_tcp="none"
+
+    - name: Configure libvirtd.conf - tcp_port = "16509"
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: "tcp_port ="
+        line: tcp_port = "16509"
+
+    - name: Configure the service runner to pass --listen to libvirtd - Fedora
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/libvirtd
+        regexp: "LIBVIRTD_ARGS="
+        line: LIBVIRTD_ARGS="--listen"
+      when:
+        - ansible_distribution == 'Fedora'
+
+    - name: Ensure firewalld and libvirtd services are enabled and started on CentOS/RHEL 8
+      ansible.builtin.service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      with_items:
+        - firewalld
+        - libvirtd
+      when:
+        - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
+
+    - name: Enable and start the libvirtd TCP socket - Fedora 31
+      ansible.builtin.service:
+        name: libvirtd-tcp.socket
+        enabled: true
+        state: started
+      when:
+        - ansible_distribution == 'Fedora' and ansible_distribution_major_version == '31'
+
+    - name: Create firewalld rich rule, libvirt allowed from 10.88.0.0/16
+      ansible.posix.firewalld:
+        rich_rule: rule family="ipv4" source address="10.88.0.0/16" service name="libvirt" accept
+        permanent: true
+        state: enabled
+      when:
+        - ansible_distribution == 'Fedora'
+
+    - name: Create private provisioning network xml definition
+      ansible.builtin.template:
+        src: virt-net-openshift-private.xml.j2
+        dest: /tmp/virt-net-openshift-private.xml
+        mode: "0644"
+
+    - name: Create private provisioning network
+      community.libvirt.virt_net:
+        name: "{{ ocp_vms_openshift_subdomain }}-private"
+        command: define
+        xml: '{{ lookup("file", "/tmp/virt-net-openshift-private.xml") }}'
+
+    - name: Set private provisioning network to start at system boot
+      community.libvirt.virt_net:
+        name: "{{ ocp_vms_openshift_subdomain }}-private"
+        autostart: true
+
+    - name: Add private provisioning network bridge to firewalld dmz zone
+      ansible.posix.firewalld:
+        zone: dmz
+        interface: "{{ ocp_vms_openshift_subdomain }}-br"
+        permanent: true
+        state: enabled
+      when:
+        - ansible_distribution == 'Fedora'
+
+    - name: "Add tt0 interface to firewalld dmz zone"
+      ansible.posix.firewalld:
+        zone: dmz
+        interface: tt0
+        permanent: true
+        state: enabled
+      when:
+        - ansible_distribution == 'Fedora'
+
+    - name: Allow traffic on the libvirt port
+      ansible.posix.firewalld:
+        zone: dmz
+        service: libvirt
+        permanent: true
+        state: enabled
+      when:
+        - ansible_distribution == 'Fedora'
+
+    - name: Allow traffic on the libvirt port
+      ansible.posix.firewalld:
+        zone: libvirt
+        service: libvirt
+        permanent: true
+        state: enabled
+      when:
+        - ansible_distribution == 'RedHat' and ansible_distribution_major_version == '8'
+
+- name: Ensure libvirtd, ksm, ksmtuned, and tuned services are enabled and started
+  ansible.builtin.service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  with_items:
+    - libvirtd
+    - ksm
+    - ksmtuned
+    - tuned
+
+- name: Check tuned profile
+  ansible.builtin.command: tuned-adm active
+  register: tuned_adm
+  changed_when: false
+
+- name: Set tuned profile to virtual-host
+  ansible.builtin.command: tuned-adm profile virtual-host
+  changed_when: true
+  when: "'virtual-host' not in tuned_adm.stdout"
+
+- name: Install libselinux-python package - CentOS/RHEL 7
+  ansible.builtin.yum:
+    name:
+      - libselinux-python
+  when:
+    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '7'
+
+- name: Install libselinux-python package - CentOS/RHEL 8
+  ansible.builtin.yum:
+    name:
+      - python3-libselinux
+  when:
+    - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'

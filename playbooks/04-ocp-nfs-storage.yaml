@@ -1,39 +1,40 @@
-#vim: set ft=ansible:
 ---
-- hosts: localhost
+- name: Install jmespath on localhost for json_query filter support
+  hosts: localhost
   connection: local
   become: true
   # gather_facts: false
   tasks:
-  - name: Install jmespath pip modules for Python 3, using the 'pip3' executable.
-    pip:
-      name: "{{ item }}"
-      executable: pip3
-      extra_args: --user
-    with_items:
-      - jmespath==0.10.0
-    when:
-      - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
+    - name: Install jmespath pip module for Python 3
+      ansible.builtin.pip:
+        name: "{{ item }}"
+        executable: pip3
+        extra_args: --user
+      with_items:
+        - jmespath==0.10.0
+      when:
+        - (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version == '8'
 
-- hosts: util
+- name: Configure NFS storage and post-install tasks on utility node
+  hosts: util
   become: true
   tasks:
-  - name: "OCP pip modules"
-    import_role:
-      name: ocp4-solo-post-install
-      tasks_from: ocp-pip-modules
+    - name: Install OCP pip modules
+      ansible.builtin.import_role:
+        name: ocp4_solo_post_install
+        tasks_from: ocp-pip-modules
 
-  - name: "NFS Storage config"
-    import_role:
-      name: ocp4-solo-post-install
-      tasks_from: nfs-storage
+    - name: Configure NFS storage
+      ansible.builtin.import_role:
+        name: ocp4_solo_post_install
+        tasks_from: nfs-storage
 
-  - name: Information about this install 
-    vars: 
-      msg: |
-        "Once the playbook run is complete, ssh into the util vm and run:"
-        "# /usr/local/bin/utilnodecheck"
-        "...for installation status and details."
-    debug: 
-      msg: "{{ msg.split('\n') }}"       
-    tags: debug_info
+    - name: Display post-install information
+      vars:
+        msg: |
+          "Once the playbook run is complete, ssh into the util vm and run:"
+          "# /usr/local/bin/utilnodecheck"
+          "...for installation status and details."
+      ansible.builtin.debug:
+        msg: "{{ msg.split('\n') }}"
+      tags: debug_info

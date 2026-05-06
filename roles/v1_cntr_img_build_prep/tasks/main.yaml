@@ -1,0 +1,54 @@
+---
+# role to prep base container image for app install/config
+
+- name: Register presence of old build container
+  ansible.builtin.shell: >
+    set -o pipefail &&
+    buildah containers | grep {{ container_name }} | awk '{print $NF}'
+  become: true
+  register: buildahcmd1
+  changed_when: false
+  failed_when: false
+  when: container_engine == 'buildah'
+  tags:
+    - buildcntrprez
+
+- name: Set build container name as fact
+  ansible.builtin.set_fact:
+    buildcntrname: "{{ buildahcmd1.stdout | trim }}"
+  tags:
+    - buildcntrprez
+
+- name: Print buildcntrname variable
+  ansible.builtin.debug:
+    var: buildcntrname
+  tags:
+    - buildcntrprez
+
+- name: Remove old build container if present
+  ansible.builtin.command: buildah rm {{ container_name }}
+  become: true
+  changed_when: buildcntrname != ''
+  failed_when: false
+  tags:
+    - buildcntrprez
+
+- name: Obtain base image and create a build container from it
+  ansible.builtin.command: "buildah from --name {{ container_name }} docker://{{ image }}"
+  become: true
+  changed_when: true
+  when: container_engine == 'buildah'
+
+- name: Make base image available locally and create container
+  when: container_engine == 'docker'
+  block:
+    - name: Pull base image
+      community.docker.docker_image:
+        name: "{{ image }}"
+        source: pull
+
+    - name: Create build container from base image
+      community.docker.docker_container:
+        image: "{{ image }}"
+        name: "{{ container_name }}"
+        command: sleep infinity

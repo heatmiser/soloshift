@@ -1,0 +1,91 @@
+---
+- name: NFS, LVM2 and XFSprogs package installation on Fedora, RHEL 8, and CentOS 8
+  ansible.builtin.dnf:
+    name:
+      - nfs-utils
+      - lvm2
+      - xfsprogs
+    state: present
+  when:
+    - ansible_distribution == 'Fedora' or (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8) or (ansible_distribution ==
+      'CentOS' and ansible_distribution_major_version|int >= 8)
+
+- name: Python3-pip on CentOS 8
+  ansible.builtin.dnf:
+    name:
+      - python3-pip
+    state: present
+  when:
+    - (ansible_distribution == 'RedHat' and ansible_distribution_major_version|int >= 8) or (ansible_distribution == 'CentOS' and
+      ansible_distribution_major_version|int >= 8)
+
+- name: NFS firewall exceptions
+  ansible.posix.firewalld:
+    permanent: true
+    immediate: true
+    state: enabled
+    service: "{{ item }}"
+  with_items:
+    - nfs
+    - mountd
+    - rpc-bind
+
+- name: Display last storage device to be used for volume group
+  ansible.builtin.debug:
+    msg: "{{ dns.clusterid }}.{{ util.name }} device ==> {{ item }}"
+  with_items: "{{ hostvars['127.0.0.1']['ansible_facts']['ocp_vms_util_device_list'] | last }}"
+  tags:
+    - ocp_vms_util_image_props
+
+- name: Create volume group storage01 on last available storage device with 4M PE size
+  community.general.lvg:
+    vg: storage01
+    pvs: "/dev/{{ hostvars['127.0.0.1']['ansible_facts']['ocp_vms_util_device_list'] | last }}"
+    pesize: 4096K
+
+- name: Create logical volume utilizing all remaining space in volume group
+  community.general.lvol:
+    vg: storage01
+    lv: ocppersist01
+    size: 100%VG
+
+- name: Create an xfs filesystem on /dev/storage01/ocppersist01
+  community.general.filesystem:
+    fstype: xfs
+    dev: /dev/storage01/ocppersist01
+
+- name: Mount /dev/mapper/storage01-ocppersist01 on /mnt/nfs and add to /etc/fstab
+  ansible.posix.mount:
+    path: /mnt/nfs
+    src: /dev/mapper/storage01-ocppersist01
+    fstype: xfs
+    state: mounted
+
+- name: Create /mnt/nfs/ocp directory if it does not exist
+  ansible.builtin.file:
+    path: /mnt/nfs/ocp
+    state: directory
+    mode: "0777"
+
+- name: Create /mnt/nfs/store0{0..9} directories if not exist
+  ansible.builtin.file:
+    path: /mnt/nfs/store{{ item }}
+    state: directory
+    mode: "0777"
+  with_sequence: start=0 end=9 format=%02d
+
+- name: Write out /etc/exports file
+  ansible.builtin.template:
+    src: nfs/exports.j2
+    dest: /etc/exports
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable/Start NFS service
+  ansible.builtin.service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  with_items:
+    - nfs-server.service

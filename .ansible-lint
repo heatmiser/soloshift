@@ -1,0 +1,16 @@
+---
+profile: production
+
+exclude_paths:
+  - roles/devnullcake.redhat-subscription/
+  # 04-ocp-storage-node.yaml references a tasks/storage.yml that does not yet exist
+  - playbooks/04-ocp-storage-node.yaml
+
+warn_list:
+  - run-once
+  - risky-shell-pipe
+  - latest[git]
+  - role-name
+  # var-naming[no-role-prefix]: many role variables (ocp_vms_*, rhcos*, networkifacename) are
+  # cross-role shared facts; prefixing them per role would require a full architectural refactor
+  - var-naming[no-role-prefix]

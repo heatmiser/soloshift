@@ -1,112 +1,116 @@
 ---
-- hosts: hypervisor
+- name: Start bootstrap VM and pause for OS readiness
+  hosts: hypervisor
   tasks:
-  - name: start bootstrap vm
-    virt:
-      name: "{{ dns.clusterid }}.{{ bootstrap.name }}"
-      state: running
+    - name: Start bootstrap VM
+      community.libvirt.virt:
+        name: "{{ dns.clusterid }}.{{ bootstrap.name }}"
+        state: running
 
-  - name: Pause for 1 minute to allow bootstrap vm to come up and update to latest OS release
-    pause:
-      seconds: 60
+    - name: Pause for 1 minute to allow bootstrap VM to come up and update to latest OS release
+      ansible.builtin.pause:
+        seconds: 60
 
-- hosts: hypervisor
+- name: Start master VMs
+  hosts: hypervisor
   tasks:
-  - name: Start master vm(s)
-    include_tasks: includes/virt-node-start.yaml
-    with_items:
-    - "{{ masters }}"
+    - name: Start master VM(s)
+      ansible.builtin.include_tasks: includes/virt-node-start.yaml
+      with_items:
+        - "{{ masters }}"
 
-  - name: Pause for 3 minutes to allow master vm(s) to come up and update to latest OS release
-    pause:
-      seconds: 180
+    - name: Pause for 3 minutes to allow master VM(s) to come up and update to latest OS release
+      ansible.builtin.pause:
+        seconds: 180
 
-- hosts: util
+- name: Wait for OpenShift bootstrap to complete
+  hosts: util
   become: true
   gather_facts: true
   tasks:
-  - name: Execute openshift-install to get to bootstrap completion...
-    command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi wait-for bootstrap-complete --log-level debug"
+    - name: Execute openshift-install and wait for bootstrap completion
+      ansible.builtin.command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi wait-for bootstrap-complete --log-level debug"
+      changed_when: false
 
-  - name: >
-      Wait until the string "It is now safe to remove the bootstrap resources" is in the file .openshift_install.log before continuing...
-    wait_for:
-      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: It\ is\ now\ safe\ to\ remove\ the\ bootstrap\ resources
-      timeout: 6000
-      sleep: 10
+    - name: Wait until bootstrap resources are safe to remove
+      ansible.builtin.wait_for:
+        path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+        search_regex: It\ is\ now\ safe\ to\ remove\ the\ bootstrap\ resources
+        timeout: 6000
+        sleep: 10
   tags:
     - ocp_install_log_wait
 
-- hosts: hypervisor
+- name: Remove bootstrap VM and start worker and infra VMs
+  hosts: hypervisor
   tasks:
-  - name: Remove bootstrap VM
-    include_tasks: includes/eject-bootstrap.yaml
+    - name: Remove bootstrap VM
+      ansible.builtin.include_tasks: includes/eject-bootstrap.yaml
 
-  - name: start worker vm(s)
-    virt:
-      name: "{{ dns.clusterid }}.{{ item.name }}"
-      state: running
-    with_items:
-    - "{{ workers }}"
-    when: workers | length > 0
+    - name: Start worker VM(s)
+      community.libvirt.virt:
+        name: "{{ dns.clusterid }}.{{ item.name }}"
+        state: running
+      with_items:
+        - "{{ workers }}"
+      when: workers | length > 0
 
-  - name: start infra vm(s)
-    virt:
-      name: "{{ dns.clusterid }}.{{ item.name }}"
-      state: running
-    with_items:
-    - "{{ infras }}"
-    when: infras | length > 0
+    - name: Start infra VM(s)
+      community.libvirt.virt:
+        name: "{{ dns.clusterid }}.{{ item.name }}"
+        state: running
+      with_items:
+        - "{{ infras }}"
+      when: infras | length > 0
 
-  - name: Pause for 2 minutes to allow worker vm(s) to come up
-    pause:
-      seconds: 120
-    when: workers | length > 0 or infras | length > 0
+    - name: Pause for 2 minutes to allow worker VM(s) to come up
+      ansible.builtin.pause:
+        seconds: 120
+      when: workers | length > 0 or infras | length > 0
 
-- hosts: util
+- name: Wait for OpenShift install to complete and approve CSRs
+  hosts: util
   become: true
   gather_facts: true
   tasks:
-  - name: Execute openshift-install again to achieve 100% completion...
-    command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi wait-for install-complete --log-level debug"
-    async: 6000
-    poll: 0
+    - name: Execute openshift-install and wait for install completion
+      ansible.builtin.command: "openshift-install --dir={{ ansible_user_dir }}/ocp4upi wait-for install-complete --log-level debug"
+      changed_when: false
+      async: 6000
+      poll: 0
 
-  - name: Loop on CSR approvals until worker nodes get approved
-    command: "/usr/local/bin/ocp-approve-pending-csrs.sh"
-    async: 6000
-    poll: 0
+    - name: Loop on CSR approvals until worker nodes are approved
+      ansible.builtin.command: "/usr/local/bin/ocp-approve-pending-csrs.sh"
+      changed_when: false
+      async: 6000
+      poll: 0
 
-  - name: >
-      Wait until the string "Working towards 4.x.y: 9z% complete" is in the file .openshift_install.log before continuing...
-    wait_for:
-      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: >-
-        Working towards 4.(.*)9(\d)% complete
-      timeout: 2000
-      sleep: 10
-    tags: regex1
- 
-  - name: >
-      Wait until the string "Install complete!" is in the file .openshift_install.log before continuing...
-    wait_for:
-      path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-      search_regex: Install complete\!
-      timeout: 2000
-      sleep: 10
-    tags: regex1
+    - name: Wait until install is 90%+ complete per install log
+      ansible.builtin.wait_for:
+        path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+        search_regex: >-
+          Working towards 4.(.*)9(\d)% complete
+        timeout: 2000
+        sleep: 10
+      tags: regex1
 
-  - name: Information about this install 
-    vars: 
-      msg: |
-        "Install complete!"
-        "On the util node, check the last section of"
-        "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
-        "for cluster login credentials."
-        "If external NFS storage is desired, next execute:"
-        "# ansible-playbook playbooks/04-ocp-nfs-storage.yaml"
-    debug: 
-      msg: "{{ msg.split('\n') }}"       
-    tags: debug_info
- 
+    - name: Wait until install complete message appears in install log
+      ansible.builtin.wait_for:
+        path: "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+        search_regex: Install complete\!
+        timeout: 2000
+        sleep: 10
+      tags: regex1
+
+    - name: Display post-install information
+      vars:
+        msg: |
+          "Install complete!"
+          "On the util node, check the last section of"
+          "{{ ansible_user_dir }}/ocp4upi/.openshift_install.log"
+          "for cluster login credentials."
+          "If external NFS storage is desired, next execute:"
+          "# ansible-playbook playbooks/04-ocp-nfs-storage.yaml"
+      ansible.builtin.debug:
+        msg: "{{ msg.split('\n') }}"
+      tags: debug_info
